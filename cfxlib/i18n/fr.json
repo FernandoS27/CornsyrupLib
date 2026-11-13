@@ -1,0 +1,995 @@
+{
+  "stdlib/color::color.with_alpha": {
+    "brief": "Remplace l'alpha d'une couleur, en laissant le RVB intact.",
+    "param": {
+      "c": "La couleur à reconstruire.",
+      "a": "Le nouvel alpha, qui remplace celui de la couleur."
+    },
+    "result": "Le même RVB avec `a` pour alpha."
+  },
+  "stdlib/color::color.fade": {
+    "brief": "Multiplie l'alpha d'une couleur par `k`, en laissant le RVB intact — l'idiome du fondu. Multiplie au lieu d'affecter, donc cela se compose : une particule déjà à demi transparente par sa couleur de naissance s'estompe depuis où elle est, pas depuis l'opaque.",
+    "param": {
+      "c": "La couleur à estomper.",
+      "k": "Le facteur par lequel l'alpha est multiplié. 1 ne change rien, 0 rend invisible."
+    },
+    "result": "Le même RVB avec son alpha mis à l'échelle."
+  },
+  "stdlib/color::color.mix": {
+    "brief": "Mélange deux couleurs, alpha compris.",
+    "param": {
+      "a": "La couleur à t = 0.",
+      "b": "La couleur à t = 1.",
+      "t": "Où se placer entre les deux. Saturé : les valeurs hors de [0, 1] sont bornées plutôt qu'extrapolées."
+    },
+    "result": "La couleur mélangée."
+  },
+  "stdlib/color::color.gamma": {
+    "brief": "Correction gamma approximative sur le RVB (l'alpha n'est pas touché).",
+    "param": {
+      "c": "La couleur à corriger.",
+      "g": "L'exposant appliqué à chaque canal RVB. 2,2 est le gamma d'affichage usuel."
+    },
+    "result": "La couleur corrigée, avec son alpha inchangé."
+  },
+  "stdlib/color::color.grading": {
+    "brief": "Exposition, puis un décalage teinte/saturation/valeur, puis retour au RVB — la chaîne d'étalonnage classique.",
+    "param": {
+      "rgba": "La couleur à étalonner.",
+      "hsv_offset": "Ajouté à la forme TSV : décalage de teinte, de saturation, de valeur, et le décalage d'alpha dans la dernière voie.",
+      "exp_exposure": "Le multiplicateur d'exposition, sous forme de vecteur car c'est ainsi que le compilateur stocke une valeur uniforme. Des uns laissent la couleur inchangée."
+    },
+    "result": "La couleur étalonnée, de retour en RVB."
+  },
+  "stdlib/color::color.adjust_hsv": {
+    "brief": "Le modèle `Color` de PopcornFX : décale une couleur en TSV d'une constante et de la variation propre à la particule, tirée à sa naissance, puis revient en RVB.",
+    "param": {
+      "rgba": "La couleur à ajuster.",
+      "shift": "Le décalage TSV constant : décalage de teinte, de saturation, de valeur, et 0 dans la dernière voie.",
+      "variation": "Le tirage TSV de la particule à sa naissance (`rand(-1, 1) * HSVVariation * 0.5`), stocké dans un champ."
+    },
+    "result": "La couleur ajustée, de retour en RVB."
+  },
+  "stdlib/color::color.fade_on_stop": {
+    "brief": "La moitié couleur de `FadeOnStop` de PopcornFX : met chaque canal à l'échelle de `1 - time_since_stop`, de sorte que la particule s'estompe pendant que tourne le minuteur d'arrêt. Passez la valeur du minuteur d'avant le `life.ratio_since_stop` de cette image.",
+    "param": {
+      "c": "La couleur à estomper.",
+      "time_since_stop": "Le minuteur de `FadeOnStop`, 0 tant que l'effet tourne."
+    },
+    "result": "La couleur estompée."
+  },
+  "stdlib/easing::easing.ease_in_quad": {
+    "brief": "Accélère depuis l'arrêt : lent au début, plus rapide à la fin. Quadratique.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1. Saturée d'abord : ce qui dépasse est borné."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/easing::easing.ease_out_quad": {
+    "brief": "Décélère jusqu'à l'arrêt : plus rapide au début, lent à la fin. Quadratique.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1. Saturée d'abord : ce qui dépasse est borné."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/easing::easing.ease_in_cubic": {
+    "brief": "Accélère depuis l'arrêt, plus fort que la quadratique : le départ est presque plat. Cubique.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1. Saturée d'abord : ce qui dépasse est borné."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/easing::easing.ease_out_cubic": {
+    "brief": "Décélère jusqu'à l'arrêt, plus fort que la quadratique : la fin est presque plate. Cubique.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1. Saturée d'abord : ce qui dépasse est borné."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/easing::easing.ease_in_out_quad": {
+    "brief": "Accélère depuis l'arrêt puis décélère jusqu'à lui, en se rejoignant à mi-vitesse au milieu. Quadratique des deux côtés.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1. Saturée d'abord : ce qui dépasse est borné."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/easing::easing.ease_sine": {
+    "brief": "Adoucissement sinusoïdal entrée-sortie — le plus doux des peu coûteux, sans angle visible aux extrémités.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1. Saturée d'abord : ce qui dépasse est borné."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/easing::easing.pulse": {
+    "brief": "Une bosse 0 → 1 → 0 : monte sur [0, peak], descend sur [peak, 1]. Le fondu d'entrée-sortie classique.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1.",
+      "peak": "L'endroit où la bosse atteint 1. Avancez-le pour un éclat bref suivi d'une longue traîne."
+    },
+    "result": "La valeur de la bosse en `t`, de 0 à 1."
+  },
+  "stdlib/easing::easing.fade_out_after": {
+    "brief": "Reste à 1 jusqu'à `hold`, puis s'estompe jusqu'à 0 à t = 1.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1.",
+      "hold": "Combien de temps la pleine intensité dure avant le début du fondu."
+    },
+    "result": "1 pendant le maintien, puis descend jusqu'à 0."
+  },
+  "stdlib/easing::easing.fade_in_out": {
+    "brief": "Monte en rampe jusqu'à `in_end`, se maintient, puis redescend depuis `out_start` — un trapèze plutôt qu'un pic.",
+    "param": {
+      "t": "La position normalisée, de 0 à 1.",
+      "in_end": "Où la montée s'achève et où le maintien commence.",
+      "out_start": "Où le maintien s'achève et où la descente commence."
+    },
+    "result": "La valeur du trapèze en `t`, de 0 à 1."
+  },
+  "stdlib/easing::easing.decay": {
+    "brief": "Décroissance exponentielle vers 0 — divisée par deux à chaque `half_life`, sans jamais tout à fait atteindre zéro.",
+    "param": {
+      "t": "L'avancement de la décroissance, dans les mêmes unités que `half_life`.",
+      "half_life": "Le temps que met la valeur à être divisée par deux. Plus petit, plus rapide."
+    },
+    "result": "La fraction restante : 1 à t = 0, tendant vers 0."
+  },
+  "stdlib/events::events.trigger_on_death": {
+    "brief": "L'état d'engendrement d'un déclenchement unique qui part au tick où cette particule meurt, et à aucun autre — ce que compile le nœud d'événement `SimpleOnDeath` de PopcornFX. Déclenchez-le tel quel avec `spawn.emit`, ou ouvrez-y une charge avec `initPayload` et remplissez-la avec les aides `emplace_*`.",
+    "result": "Le triplet d'état d'engendrement que renvoie `trigger`, comme `generate` pour un débit : ce que prennent `initPayload` et `buildPayloadElement`. Vide à chaque tick où la particule est encore vivante."
+  },
+  "stdlib/events::events.emplace_payload": {
+    "brief": "Ajoute une valeur à une charge. Construisez `semantic` avec `payloads.PackSemantics` plutôt que d'écrire le nombre, sinon le lecteur suivant devra le décoder à la main.",
+    "param": {
+      "event": "L'événement auquel la charge appartient.",
+      "gen": "L'état d'engendrement avec lequel la charge a été ouverte (le second argument d'`initPayload`).",
+      "key": "La clé de la charge à laquelle on ajoute : le résultat d'`initPayload` pour le premier élément, celui de l'`emplace_*` précédent pour les suivants.",
+      "index": "La position de l'élément dans la déclaration de l'événement. Doit être un littéral, et déterminante — un mauvais indice ne provoque pas d'erreur, il échoue en silence.",
+      "value": "La valeur que reçoit chaque enfant engendré.",
+      "semantic": "Le mot compacté du genre et de l'interpolation. Doit être une constante de compilation — le moteur l'enregistre comme uniforme."
+    },
+    "result": "La clé à laquelle ajouter ensuite. Enchaînez-la et déclenchez (`kick`) la dernière, sinon tout élément ajouté est perdu."
+  },
+  "stdlib/events::events.emplace_position": {
+    "brief": "Ajoute une position de naissance, étiquetée pour que la transformation d'engendrement du moteur la reconnaisse — ce qu'écrit l'`EventPayloadAppend` de PopcornFX pour une charge `XFormsPositions`.",
+    "param": {
+      "event": "L'événement auquel la charge appartient.",
+      "gen": "L'état d'engendrement avec lequel la charge a été ouverte.",
+      "key": "La clé de la charge à laquelle on ajoute.",
+      "index": "La position de l'élément dans la déclaration de l'événement.",
+      "position": "Où l'enfant naît."
+    },
+    "result": "La clé à laquelle ajouter ensuite."
+  },
+  "stdlib/events::events.emplace_element": {
+    "brief": "Ajoute une valeur ordinaire de n'importe quelle largeur, sans signification particulière — le cas courant.",
+    "param": {
+      "event": "L'événement auquel la charge appartient.",
+      "gen": "L'état d'engendrement avec lequel la charge a été ouverte.",
+      "key": "La clé de la charge à laquelle on ajoute.",
+      "index": "La position de l'élément dans la déclaration de l'événement.",
+      "value": "La valeur que reçoit chaque enfant engendré."
+    },
+    "result": "La clé à laquelle ajouter ensuite."
+  },
+  "stdlib/life::life.set_lifetime": {
+    "brief": "Fixe la durée de vie de cette particule, en secondes — ce que fait le nœud `SetLife` de PopcornFX.",
+    "param": {
+      "seconds": "Combien de temps la particule vit. Zéro la tue à sa première mise à jour, comme `SetLife` avec une durée de 0 ; passez `inf` pour une particule qui vit jusqu'à ce que quelque chose la tue."
+    }
+  },
+  "stdlib/life::life.kill_when": {
+    "brief": "Meurt quand `cond` est vrai, et conserve la durée de vie actuelle sinon.",
+    "param": {
+      "cond": "Tuée à ce tick quand vrai. Évalué voie par voie, donc chaque particule répond pour elle-même."
+    }
+  },
+  "stdlib/life::life.age_ratio": {
+    "brief": "L'âge normalisé de cette particule.",
+    "result": "0 à la naissance et 1 à la mort — la valeur qui pilote chaque fondu, rampe de taille et courbe de couleur."
+  },
+  "stdlib/life::life.select_texture_id_on_age": {
+    "brief": "Parcourt l'atlas d'un renderer sur la durée de vie de la particule, de la première image à la dernière.",
+    "param": {
+      "local_rend": "Le renderer dont `Atlas.SubDiv` donne la grille. C'est une poignée : le nombre d'images est lu sur ce que le site d'appel a nommé."
+    },
+    "result": "L'image d'atlas (base 1) pour l'âge de cette particule. À affecter au champ `TextureID` du calque."
+  },
+  "stdlib/life::life.select_texture_id_on_inv_age": {
+    "brief": "Parcourt l'atlas d'un renderer à rebours sur la durée de vie de la particule, de la dernière image à la première.",
+    "param": {
+      "local_rend": "Le renderer dont `Atlas.SubDiv` donne la grille. C'est une poignée : le nombre d'images est lu sur ce que le site d'appel a nommé."
+    },
+    "result": "L'image d'atlas (base 1) pour la vie restante de cette particule. À affecter au champ `TextureID` du calque."
+  },
+  "stdlib/life::life.ratio_since_stop": {
+    "brief": "Une image du minuteur d'arrêt que tiennent les modèles `InfiniteLife` et `FadeOnStop` de PopcornFX : 0 tant que l'effet tourne, puis montant jusqu'à 1 à `rate` par seconde une fois arrêté. Tuez la particule quand il atteint 1 (`self.kill(t == 1.0)`), et estompez sa couleur de `1 - t` avec `color.fade_on_stop`.",
+    "param": {
+      "timer": "Le champ minuteur qu'ajoute le modèle (`LifeRatioSinceStop` / `TimeSinceStop`) : 0 à la naissance, saturé à 1.",
+      "rate": "Sa vitesse une fois arrêté, par seconde : `1 / DeathDelay` pour `InfiniteLife`, `FadeSpeed` pour `FadeOnStop`. `inf` tue à la première image arrêtée."
+    },
+    "result": "La nouvelle valeur du minuteur ; rangez-la dans le champ."
+  },
+  "stdlib/math::math.DEG2RAD": {
+    "brief": "Des degrés aux radians, sous forme de multiplicateur. La trigonométrie du moteur est entièrement en radians : c'est donc par là que doit passer un angle écrit par un humain."
+  },
+  "stdlib/math::math.RAD2DEG": {
+    "brief": "Des radians aux degrés, sous forme de multiplicateur — le chemin de retour d'un angle moteur vers un angle lisible."
+  },
+  "stdlib/math::math.PI": {
+    "brief": "Un demi-tour en radians — le rapport de la circonférence d'un cercle à son diamètre."
+  },
+  "stdlib/math::math.TAU": {
+    "brief": "Un tour complet en radians. `rand(0.0, TAU)` est l'idiome pour un angle aléatoire autour d'un cercle."
+  },
+  "stdlib/math::math.deg_to_rad": {
+    "brief": "Convertit un angle des degrés vers les radians.",
+    "param": {
+      "d": "L'angle en degrés."
+    },
+    "result": "Le même angle en radians."
+  },
+  "stdlib/math::math.rad_to_deg": {
+    "brief": "Convertit un angle des radians vers les degrés.",
+    "param": {
+      "r": "L'angle en radians."
+    },
+    "result": "Le même angle en degrés."
+  },
+  "stdlib/math::math.remap": {
+    "brief": "Transforme `x` de l'intervalle [lo, hi] vers [0, 1]. Borné par défaut.",
+    "param": {
+      "x": "La valeur à transformer.",
+      "lo": "La valeur qui correspond à 0.",
+      "hi": "La valeur qui correspond à 1.",
+      "clamped": "Si le résultat reste dans [0, 1]. Faux le laisse dépasser de part et d'autre."
+    },
+    "result": "Où `x` se situe entre `lo` et `hi`."
+  },
+  "stdlib/math::math.inv_lerp": {
+    "brief": "L'interpolation inverse non bornée — où `x` se situe entre `lo` et `hi`, avec le droit de dépasser de part et d'autre.",
+    "param": {
+      "x": "La valeur à transformer.",
+      "lo": "La valeur qui correspond à 0.",
+      "hi": "La valeur qui correspond à 1."
+    },
+    "result": "La position non bornée, qui peut être inférieure à 0 ou supérieure à 1."
+  },
+  "stdlib/math::math.remap_range": {
+    "brief": "Transforme `x` de [in_lo, in_hi] vers [out_lo, out_hi] — le remappage général entre deux intervalles.",
+    "param": {
+      "x": "La valeur à transformer.",
+      "in_lo": "La valeur d'entrée qui correspond à `out_lo`.",
+      "in_hi": "La valeur d'entrée qui correspond à `out_hi`.",
+      "out_lo": "Ce que devient l'extrémité basse.",
+      "out_hi": "Ce que devient l'extrémité haute.",
+      "clamped": "Si le résultat reste dans l'intervalle de sortie."
+    },
+    "result": "La valeur remappée."
+  },
+  "stdlib/math::math.clamp01": {
+    "brief": "Maintient une valeur dans [0, 1].",
+    "param": {
+      "x": "La valeur à transformer."
+    },
+    "result": "La valeur, bornée."
+  },
+  "stdlib/math::math.smoothstep": {
+    "brief": "Adoucissement de Hermite sur [e0, e1] — une rampe dont la pente est nulle aux deux extrémités, elle démarre et s'arrête donc sans angle visible.",
+    "param": {
+      "e0": "Où la rampe commence.",
+      "e1": "Où la rampe s'achève.",
+      "x": "La valeur à transformer."
+    },
+    "result": "La valeur adoucie, de 0 à 1."
+  },
+  "stdlib/math::math.blend": {
+    "brief": "Mélange linéaire, pour tout scalaire ou vecteur flottant. `t` est scalaire et se diffuse, et n'est PAS borné — passez-le d'abord par `clamp01` s'il risque de sortir de l'intervalle.",
+    "param": {
+      "a": "La valeur à t = 0.",
+      "b": "La valeur à t = 1.",
+      "t": "Où se placer entre les deux."
+    },
+    "result": "La valeur mélangée."
+  },
+  "stdlib/math::math.approach": {
+    "brief": "Déplace `cur` vers `target` d'un `rate` saturé — l'adoucissement par image habituel. Dépendant de la fréquence d'images par construction : multipliez `rate` par `scene.dt` si vous n'en voulez pas.",
+    "param": {
+      "cur": "Où la valeur se trouve maintenant.",
+      "target": "Vers où elle se dirige.",
+      "rate": "Quelle part de l'écart restant est comblée à cet appel. Saturé : 1 arrive d'un coup."
+    },
+    "result": "La valeur après un pas."
+  },
+  "stdlib/math::math.clamp_to": {
+    "brief": "Bornage composante par composante à [lo, hi], pour tout scalaire ou vecteur flottant.",
+    "param": {
+      "v": "La valeur à borner.",
+      "lo": "Le plancher, par composante.",
+      "hi": "Le plafond, par composante."
+    },
+    "result": "La valeur bornée."
+  },
+  "stdlib/math::math.safe_rcp": {
+    "brief": "`1/x`, ou `fallback` lorsque `x` vaut 0 — le `rcp(0)` du moteur donne ±inf, qui se propage en NaN. Protège le RÉSULTAT, pas la division : les deux branches s'exécutent toujours.",
+    "param": {
+      "x": "La valeur à inverser.",
+      "fallback": "Que répondre quand `x` vaut exactement 0."
+    },
+    "result": "L'inverse, ou la valeur de repli."
+  },
+  "stdlib/math::math.safe_div": {
+    "brief": "`a/b`, ou `fallback` quand `b` vaut 0. Protège le RÉSULTAT, pas la division — la division s'exécute quand même et son ±inf est jeté.",
+    "param": {
+      "a": "Le numérateur.",
+      "b": "Le dénominateur.",
+      "fallback": "Que répondre quand `b` vaut exactement 0."
+    },
+    "result": "Le quotient, ou la valeur de repli."
+  },
+  "stdlib/math::math.sign_or": {
+    "brief": "`sign(x)`, mais renvoie `zero` exactement en 0 au lieu de la réponse propre du moteur — pour quand « aucune direction » doit vouloir dire quelque chose de précis.",
+    "param": {
+      "x": "La valeur dont on veut le signe.",
+      "zero": "Que répondre exactement en 0."
+    },
+    "result": "-1, `zero` ou +1."
+  },
+  "stdlib/math::degrees.sin": {
+    "brief": "Le sinus d'un angle donné en degrés.",
+    "param": {
+      "x": "L'angle en degrés."
+    },
+    "result": "Le sinus, de -1 à 1."
+  },
+  "stdlib/math::degrees.cos": {
+    "brief": "Le cosinus d'un angle donné en degrés.",
+    "param": {
+      "x": "L'angle en degrés."
+    },
+    "result": "Le cosinus, de -1 à 1."
+  },
+  "stdlib/math::degrees.tan": {
+    "brief": "La tangente d'un angle donné en degrés.",
+    "param": {
+      "x": "L'angle en degrés."
+    },
+    "result": "La tangente, non bornée près de 90 degrés."
+  },
+  "stdlib/math::degrees.asin": {
+    "brief": "L'arc sinus, donné en degrés.",
+    "param": {
+      "x": "Le rapport dont on prend la fonction inverse."
+    },
+    "result": "L'angle en degrés."
+  },
+  "stdlib/math::degrees.acos": {
+    "brief": "L'arc cosinus, donné en degrés.",
+    "param": {
+      "x": "Le rapport dont on prend la fonction inverse."
+    },
+    "result": "L'angle en degrés."
+  },
+  "stdlib/math::degrees.atan": {
+    "brief": "L'arc tangente, donné en degrés. Utilisez `atan2` quand vous avez les deux côtés, pour que le quadrant survive.",
+    "param": {
+      "x": "Le rapport dont on prend la fonction inverse."
+    },
+    "result": "L'angle en degrés."
+  },
+  "stdlib/math::degrees.atan2": {
+    "brief": "L'angle du vecteur (x, y), donné en degrés sur le cercle entier — contrairement à `atan`, les signes des deux arguments sont conservés, si bien que le quadrant survit.",
+    "param": {
+      "y": "Le côté vertical.",
+      "x": "Le côté horizontal."
+    },
+    "result": "L'angle en degrés."
+  },
+  "stdlib/payload::payloads.Lerp.None": {
+    "brief": "Une seule image source : l'enfant reçoit la valeur telle quelle, sans interpolation."
+  },
+  "stdlib/payload::payloads.Lerp.VectorLinear": {
+    "brief": "Deux images, mélangées composante par composante — la valeur de l'enfant se place entre les deux images de naissance."
+  },
+  "stdlib/payload::payloads.Lerp.VectorCubic": {
+    "brief": "Quatre sources : les deux images et les deux dérivées. C'est le seul mode qui conserve les flux de dérivées de la forme `buildPayloadElementD` ; tous les autres les jettent."
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionNlerp": {
+    "brief": "Deux images mélangées comme un quaternion normalisé — le mélange de rotation économique, qui prend le chemin le plus court mais pas à vitesse constante."
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionSlerp": {
+    "brief": "Deux images mélangées le long du grand cercle — vitesse angulaire constante, plus coûteuse que la forme normalisée."
+  },
+  "stdlib/payload::payloads.EKind.Generic": {
+    "brief": "Un élément de charge ordinaire, sans signification pour la machinerie d'engendrement — la bonne réponse pour tout ce qui n'est ni une transformation ni l'indice de l'enfant."
+  },
+  "stdlib/payload::payloads.EKind.Position": {
+    "brief": "Une position de naissance. Le genre est inscrit dans l'en-tête du cache de charges, où la transformation d'engendrement le lit."
+  },
+  "stdlib/payload::payloads.EKind.Orientation": {
+    "brief": "Une orientation de naissance, traitée comme `Position` — consignée dans l'en-tête pour la transformation d'engendrement."
+  },
+  "stdlib/payload::payloads.EKind.EmittedCount": {
+    "brief": "L'indice courant de chaque enfant au sein de la salve. N'AGIT que sur un élément entier scalaire — pour toute autre largeur, le moteur enregistre le genre sans rien en faire."
+  },
+  "stdlib/payload::payloads.PackSemantics": {
+    "brief": "Compacte le mode d'interpolation et le genre d'un élément de charge dans le mot que `buildPayloadElement` prend en dernier argument. ATTENTION à l'ordre : `lerp` d'abord, puis `kind` — le `PackSemantics` du moteur les prend dans l'autre sens.",
+    "param": {
+      "lerp": "Combien d'images sources le moteur lit, parmi `Lerp`.",
+      "kind": "Ce que l'élément signifie pour la machinerie d'engendrement, parmi `EKind`. Vaut `Generic` par défaut, ce qui convient à tout élément qui n'est ni une transformation de naissance ni l'indice d'émission."
+    },
+    "result": "Le mot compacté. Il est replié à la compilation, donc nommer les valeurs ne coûte rien."
+  },
+  "stdlib/payload::payloads.ACCUM_SEED": {
+    "brief": "La valeur de départ de l'accumulateur de `generate` d'un émetteur piloté par un taux : une retenue de 0.99999 (les bits de float `0x3F7FFF58`, juste sous un), si bien que la première image qui ajoute quoi que ce soit émet la première particule."
+  },
+  "stdlib/payload::payloads.seed": {
+    "brief": "La valeur de départ de l'accumulateur `generate` d'un émetteur à débit, qui porte `carry` d'une particule dans la première image : la voie 0 contient les bits du flottant, la voie 1 vaut 0. `seed(0.99999)` est `ACCUM_SEED`.",
+    "param": {
+      "carry": "La part d'une particule que l'accumulateur contient avant la première image. La première particule sort à l'image où le compte atteint un."
+    },
+    "result": "La valeur de départ de l'accumulateur, repliée à la compilation."
+  },
+  "stdlib/physics::physics.integrate/2": {
+    "brief": "Fait avancer `position` selon `velocity` sur une image (Euler explicite). Appelez-le AVANT de mettre à jour la vitesse et vous obtenez la forme symétrique, stable vis-à-vis du pas de temps ; appelez-le après et une particule lancée retombe trop court.",
+    "param": {
+      "position": "La position de la particule, mise à jour sur place.",
+      "velocity": "La vitesse d'avance, par seconde. Ne la mettez jamais à l'échelle par `scene.dt` au préalable : la fonction multiplie elle-même par la durée de l'image."
+    }
+  },
+  "stdlib/physics::physics.bounce_floor": {
+    "brief": "Rebondit sur un plan horizontal à la hauteur `height`, en conservant `restitution` de la vitesse verticale. Colle la particule au plan plutôt que de la réfléchir au travers, donc elle ne peut pas le traverser lors d'une image lente. Seul `z` est réfléchi ; le mouvement horizontal reste intact.",
+    "param": {
+      "position": "La position de la particule, ramenée sur le plan quand elle est en dessous.",
+      "velocity": "La vitesse de la particule ; sa composante verticale est réfléchie et mise à l'échelle.",
+      "height": "Où se trouve le sol, sur l'axe z.",
+      "restitution": "La fraction de vitesse verticale conservée à l'impact. 1 rebondit indéfiniment, 0 arrête net."
+    }
+  },
+  "stdlib/physics::physics.integrate/6": {
+    "brief": "Une image de mouvement sous accélération constante ET traînée linéaire vers un champ de vent, résolue en forme close plutôt que pas à pas, ce qui la garde exacte à n'importe quelle fréquence d'images. Sans traînée, elle se ramène au Verlet des vitesses ordinaire : c'est donc une généralisation stricte du cas simple.",
+    "param": {
+      "position": "La position de la particule, mise à jour sur place.",
+      "velocity": "La vitesse de la particule, mise à jour sur place.",
+      "acceleration": "Accélération constante pour l'image, en unités/s². La gravité se met ici sous la forme `#f32x3(0, 0, -g)`. Elle n'est PAS divisée par `mass`.",
+      "wind": "La vitesse vers laquelle la particule est entraînée. Sans effet lorsque `drag` vaut 0.",
+      "mass": "Ne divise que `drag` ; les particules plus lourdes en sont moins affectées. Doit être supérieure à 0.",
+      "drag": "Le coefficient de traînée ; `drag/mass` est le taux de décroissance en 1/s. 0 correspond au vide."
+    }
+  },
+  "stdlib/physics::physics.integrate_in_field": {
+    "brief": "Une image du modèle `Physics` de PopcornFX avec son entrée de champ vectoriel (turbulence) branchée : accélération constante plus frottement linéaire vers une vitesse de champ propre à chaque particule, sous forme fermée.",
+    "param": {
+      "position": "La position de la particule, mise à jour sur place.",
+      "velocity": "La vitesse de la particule, mise à jour sur place.",
+      "field": "La vitesse du champ vers laquelle la particule est entraînée, échantillonnée à la particule.",
+      "acceleration": "Accélération constante pour l'image, en unités/s².",
+      "mass": "Divise `drag` seulement. Doit être supérieure à 0.",
+      "drag": "Le coefficient de frottement ; `drag/mass` est le taux de décroissance en 1/s."
+    }
+  },
+  "stdlib/physics::physics.integrate/3": {
+    "brief": "Mouvement balistique : gravité constante vers le bas, rien d'autre. Le cas de très loin le plus courant du `integrate` complet, écrit à part parce qu'une gravité scalaire se lit mieux au site d'appel qu'un vecteur d'accélération. Ne coûte rien de plus : tout ce qu'il ajoute est constant, il se spécialise donc jusqu'au même code.",
+    "param": {
+      "position": "La position de la particule, mise à jour sur place.",
+      "velocity": "La vitesse de la particule, mise à jour sur place.",
+      "gravity": "La force de l'attraction vers le bas, selon -z puisque WC3 est en Z-up. Plus c'est grand, plus cela paraît lourd."
+    }
+  },
+  "stdlib/physics::physics.projection": {
+    "brief": "Colle la particule à la surface de `shape` : ramène `position` dessus et retire la part de `velocity` qui la traverse. La particule continue de glisser le long de la surface, sans s'y enfoncer ni rebondir. La surface est interrogée à la position ACTUELLE de la particule : appelez-le après `integrate` et l'erreur vaut une image de mouvement.",
+    "param": {
+      "position": "La position de la particule, mise à jour sur place.",
+      "velocity": "La vitesse de la particule, mise à jour sur place.",
+      "shape": "La surface à laquelle coller. Elle est interrogée dans son propre espace LOCAL : les deux entrées y sont transformées et les deux résultats en ressortent."
+    }
+  },
+  "stdlib/physics::physics.bounce_off_scene": {
+    "brief": "Fait rebondir sur la scène le mouvement d'une image : lance un rayon de `previous` à `position` et, là où il touche, réfléchit `velocity` sur la surface et parcourt le reste de l'image depuis le point de contact. Écrit le résultat dans `new_position` et `new_velocity`, qui peuvent être les champs d'où viennent `position` et `velocity` ; `physics.collision` est la façon habituelle de l'appeler.",
+    "param": {
+      "new_position": "Où la particule finit l'image : `position` si rien n'est touché.",
+      "new_velocity": "La vitesse de la particule après l'image : `velocity` si rien n'est touché.",
+      "position": "Où l'intégration a placé la particule à cette image.",
+      "velocity": "La vitesse de la particule après l'intégration.",
+      "previous": "Où était la particule au début de l'image, d'où part le rayon.",
+      "restitution": "La part de la vitesse vers la surface gardée à l'impact ; la même part est perdue le long de la surface. 1 rebondit indéfiniment, 0 s'arrête net.",
+      "enabled": "S'il faut entrer en collision à cette image. Avec `false`, aucun rayon n'est lancé : la particule traverse.",
+      "filter": "Le filtre de collision transmis à la requête de scène du jeu. Toutes les collisions que le jeu cuit passent 0."
+    },
+    "result": "Si la particule a touché la scène à cette image."
+  },
+  "stdlib/physics::physics.collision/6": {
+    "brief": "Entre en collision avec la scène, ce que fait le modèle `Collision` de PopcornFX avec `CollideWith` Scene : là où le mouvement de l'image de `previous` à `position` traverse la géométrie de la scène, la particule rebondit au point de contact. À appeler après avoir intégré l'image, avec la position d'avant.",
+    "param": {
+      "position": "Où l'intégration a placé la particule à cette image, mise à jour sur place.",
+      "velocity": "La vitesse de la particule après l'intégration, mise à jour sur place.",
+      "previous": "Où était la particule au début de l'image : sa position avant l'intégration.",
+      "restitution": "La part de la vitesse vers la surface gardée à l'impact ; la même part est perdue le long de la surface. 1 rebondit indéfiniment, 0 s'arrête net.",
+      "enabled": "S'il faut entrer en collision à cette image. Avec `false`, la particule traverse.",
+      "filter": "Le filtre de collision transmis à la requête de scène du jeu. Toutes les collisions que le jeu cuit passent 0."
+    }
+  },
+  "stdlib/physics::physics.collision/9": {
+    "brief": "Entre en collision avec la scène comme l'autre `collision`, et compte les rebonds : la particule meurt au rebond qui suit `bounces_before_death`, ou à son premier contact avec `die_on_contact`, comme la tue le modèle `Collision` de PopcornFX. `bounces` est un champ que garde la particule, qui commence à 0.",
+    "param": {
+      "position": "Où l'intégration a placé la particule à cette image, mise à jour sur place.",
+      "velocity": "La vitesse de la particule après l'intégration, mise à jour sur place.",
+      "bounces": "Combien de fois la particule a touché la scène, mis à jour sur place. À garder dans un champ qui commence à 0.",
+      "previous": "Où était la particule au début de l'image : sa position avant l'intégration.",
+      "restitution": "La part de la vitesse vers la surface gardée à l'impact ; la même part est perdue le long de la surface. 1 rebondit indéfiniment, 0 s'arrête net.",
+      "bounces_before_death": "Combien de rebonds la particule survit. 0 ne la tue jamais.",
+      "die_on_contact": "Tue la particule à son premier contact, quoi que dise `bounces_before_death`.",
+      "enabled": "S'il faut entrer en collision à cette image. Avec `false`, la particule traverse.",
+      "filter": "Le filtre de collision transmis à la requête de scène du jeu. Toutes les collisions que le jeu cuit passent 0."
+    }
+  },
+  "stdlib/physics::physics.spin": {
+    "brief": "Fait tourner un billboard : son angle `rotation` avancé de `speed` par seconde sur cette image, ce que compile le modèle `Legacy_Rotation` de PopcornFX avec ses valeurs par défaut. Rangez-le : `Rotation = physics.spin(Rotation, speed);`.",
+    "param": {
+      "rotation": "L'angle de rotation de la particule.",
+      "speed": "La vitesse de rotation, par seconde. Ne la mettez jamais à l'échelle par `scene.dt` au préalable."
+    },
+    "result": "L'angle après cette image."
+  },
+  "stdlib/random::random.rand_signed": {
+    "brief": "Une valeur aléatoire dans [-amount, +amount] — une oscillation symétrique autour de zéro.",
+    "param": {
+      "amount": "La demi-largeur de l'intervalle, de part et d'autre de zéro."
+    },
+    "result": "Une valeur entre `-amount` et `+amount`."
+  },
+  "stdlib/random::random.rand_around": {
+    "brief": "Une valeur aléatoire autour de `center`, avec `spread` de chaque côté.",
+    "param": {
+      "center": "Le centre de l'intervalle.",
+      "spread": "Jusqu'où la valeur peut s'écarter de `center`, de chaque côté."
+    },
+    "result": "Une valeur entre `center - spread` et `center + spread`."
+  },
+  "stdlib/random::random.rand_box": {
+    "brief": "Un point aléatoire dans une boîte alignée sur les axes et centrée sur l'origine.",
+    "param": {
+      "half": "La demi-étendue de la boîte sur chaque axe."
+    },
+    "result": "Un point à l'intérieur de la boîte."
+  },
+  "stdlib/random::random.rand_dir_xy": {
+    "brief": "Une direction aléatoire dans le plan horizontal — x et y, puisque WC3 est en Z-up — avec une composante verticale facultative.",
+    "param": {
+      "z": "De combien s'écarter du plan, vers +z, avant la normalisation. 0 reste à plat."
+    },
+    "result": "Une direction unitaire."
+  },
+  "stdlib/random::random.rand_dir": {
+    "brief": "Une direction unitaire aléatoire, uniforme sur la sphère — le `vrand()` de PopcornFX.",
+    "result": "Une direction unitaire."
+  },
+  "stdlib/random::random.jitter": {
+    "brief": "Décale une position d'un écart aléatoire d'au plus `amount` sur chaque axe.",
+    "param": {
+      "pos": "La position à décaler.",
+      "amount": "Le plus grand décalage autorisé sur un axe donné."
+    },
+    "result": "La position perturbée."
+  },
+  "stdlib/space::coord_space.local_to_world_position_xtrans_only": {
+    "brief": "Fait passer un POINT de l'espace local de l'émetteur à l'espace monde, par translation seule. Faire tourner l'origine est l'identité : le compilateur ne paie donc jamais de rotation ici.",
+    "param": {
+      "local_pos": "Le point, dans l'espace local de l'émetteur."
+    },
+    "result": "Le même point dans l'espace monde."
+  },
+  "stdlib/space::coord_space.local_to_world_position": {
+    "brief": "Fait passer un POINT de l'espace local de l'émetteur à l'espace monde, en le faisant tourner en plus de le translater — le cas normal d'une position de naissance.",
+    "param": {
+      "local_pos": "Le point, dans l'espace local de l'émetteur."
+    },
+    "result": "Le même point dans l'espace monde."
+  },
+  "stdlib/space::coord_space.local_to_world_direction": {
+    "brief": "Fait passer une DIRECTION de l'espace local de l'émetteur à l'espace monde. Rotation seule — une direction ne doit jamais capter la translation de l'émetteur.",
+    "param": {
+      "local_dir": "La direction, dans l'espace local de l'émetteur."
+    },
+    "result": "La même direction dans l'espace monde."
+  },
+  "stdlib/space::coord_space.world_to_local_position": {
+    "brief": "Ramène un POINT de l'espace monde vers l'espace local de l'émetteur — le sens dans lequel un échantillonneur de forme veut son entrée.",
+    "param": {
+      "world_pos": "Le point, dans l'espace monde."
+    },
+    "result": "Le même point dans l'espace local de l'émetteur."
+  },
+  "stdlib/space::coord_space.world_to_local_direction": {
+    "brief": "Ramène une DIRECTION de l'espace monde vers l'espace local de l'émetteur. Rotation seule, pour la même raison que sa jumelle sortante ne translate rien.",
+    "param": {
+      "world_dir": "La direction, dans l'espace monde."
+    },
+    "result": "La même direction dans l'espace local de l'émetteur."
+  },
+  "stdlib/space::coord_space.world_to_local_position_prev": {
+    "brief": "Un point de l'espace monde de l'image PRÉCÉDENTE vers l'espace local de l'émetteur de cette même image — la forme dont on construit un delta par image. C'est le seul masque du corpus qui active le bit Prev, et il l'active des deux côtés à la fois.",
+    "param": {
+      "world_pos": "Le point, dans l'espace monde de l'image précédente."
+    },
+    "result": "Le même point dans l'espace local de l'émetteur de l'image précédente."
+  },
+  "stdlib/space::coord_space.world_prev_to_world_position": {
+    "brief": "Porte un POINT de l'espace monde de l'image PRÉCÉDENTE dans celui de cette image : le mouvement de l'émetteur sur l'image, appliqué au point. C'est ainsi qu'une particule suit un émetteur qui se déplace.",
+    "param": {
+      "world_pos": "Le point, dans l'espace monde de l'image précédente."
+    },
+    "result": "Le même point dans l'espace monde de cette image."
+  },
+  "stdlib/space::coord_space.local_to_world_position_scaled": {
+    "brief": "Fait passer un POINT de l'espace local de l'émetteur à l'espace monde, en le tournant et en le METTANT À L'ÉCHELLE en plus de le translater : la position de naissance d'un calque qui suit l'échelle de son émetteur.",
+    "param": {
+      "local_pos": "Le point, dans l'espace local de l'émetteur."
+    },
+    "result": "Le même point dans l'espace monde."
+  },
+  "stdlib/space::coord_space.world_to_local_position_xtrans_only": {
+    "brief": "Ramène un POINT de l'espace monde dans l'espace local de l'émetteur, par translation seulement : l'inverse de `local_to_world_position_xtrans_only`.",
+    "param": {
+      "world_pos": "Le point, dans l'espace monde."
+    },
+    "result": "Le même point dans l'espace local de l'émetteur."
+  },
+  "stdlib/space::coord_space.rotation_about_z": {
+    "brief": "La rotation autour de l'axe vertical (Z) de `time * degrees_per_second` degrés, en orientation : c'est ainsi que PopcornFX fait tourner l'orientation d'une particule à vitesse constante.",
+    "param": {
+      "time": "Depuis combien de temps elle tourne, en secondes.",
+      "degrees_per_second": "La vitesse de rotation."
+    },
+    "result": "La rotation, un quaternion unitaire autour de Z."
+  },
+  "stdlib/space::coord_space.world_base_position": {
+    "brief": "L'origine de l'émetteur dans l'espace monde — où se trouve cet émetteur en cet instant.",
+    "result": "La position de l'émetteur dans le monde."
+  },
+  "stdlib/spawn::spawn.emit": {
+    "brief": "Déclenche `evt` avec un nombre de naissances et sans charge par enfant — l'émission la plus simple qui soit.",
+    "param": {
+      "evt": "L'événement à déclencher.",
+      "gen": "L'état d'engendrement de cette image, tel que le renvoie `generate` — report, total et clé."
+    }
+  },
+  "stdlib/spawn::spawn.emit_1": {
+    "brief": "Déclenche `evt` en portant un élément de charge. Construisez d'abord l'élément avec `buildPayloadElement`.",
+    "param": {
+      "evt": "L'événement à déclencher.",
+      "gen": "L'état d'engendrement de cette image, tel que le renvoie `generate`.",
+      "elem": "L'identifiant de l'élément à porter.",
+      "index": "La position de l'élément dans la déclaration de cet événement dans `events.cfx`. Déterminante — un mauvais indice ne provoque pas d'erreur, il échoue en silence.",
+      "channel": "La clé de cache de l'émission, premier argument de `initPayload` : la place de l'événement parmi ceux du calque, sauf si le calque l'envoie plus d'une fois par image."
+    }
+  },
+  "stdlib/spawn::spawn.emit_2": {
+    "brief": "Déclenche `evt` en portant deux éléments de charge, en enchaînant la clé à travers les deux ajouts — passer la clé d'origine à `kick` les perdrait tous les deux.",
+    "param": {
+      "evt": "L'événement à déclencher.",
+      "gen": "L'état d'engendrement de cette image, tel que le renvoie `generate`.",
+      "elem0": "L'identifiant du premier élément.",
+      "elem1": "L'identifiant du second élément.",
+      "index0": "La place du premier élément dans la déclaration de l'événement.",
+      "index1": "La place du second élément dans la déclaration de l'événement.",
+      "channel": "La clé de cache de l'émission, premier argument de `initPayload` : la place de l'événement parmi ceux du calque, sauf si le calque l'envoie plus d'une fois par image."
+    }
+  },
+  "stdlib/spawn::spawn.emit_3": {
+    "brief": "Déclenche `evt` en portant trois éléments de charge, en enchaînant la clé à travers les trois ajouts.",
+    "param": {
+      "evt": "L'événement à déclencher.",
+      "gen": "L'état d'engendrement de cette image, tel que le renvoie `generate`.",
+      "elem0": "L'identifiant du premier élément.",
+      "elem1": "L'identifiant du second élément.",
+      "elem2": "L'identifiant du troisième élément.",
+      "index0": "La place du premier élément dans la déclaration de l'événement.",
+      "index1": "La place du second élément dans la déclaration de l'événement.",
+      "index2": "La place du troisième élément dans la déclaration de l'événement.",
+      "channel": "La clé de cache de l'émission, premier argument de `initPayload` : la place de l'événement parmi ceux du calque, sauf si le calque l'envoie plus d'une fois par image."
+    }
+  },
+  "stdlib/templates::RootLayerTemplate": {
+    "brief": "L'émetteur racine : le calque 0 de pratiquement tout effet de WC3. Il ne porte aucune particule propre — il parcourt la chronologie cuite d'un échantillonneur `EventStream` et déclenche un événement par entrée, d'où naissent les calques enfants.",
+    "param": {
+      "_sd_eventStream": "La chronologie à parcourir. C'est un paramètre et non un identifiant en dur, car un identifiant d'échantillonneur ne veut rien dire dans un autre bundle : c'est le paramétrage qui rend ceci réutilisable."
+    }
+  },
+  "stdlib/templates::EventMultiplier": {
+    "brief": "Un émetteur piloté par un taux : déclenche `_t_EmissionRate` événements par seconde pendant `_t_Duration` secondes. Le pendant de `RootLayerTemplate` pour un calque qui émet en continu plutôt qu'à partir d'une chronologie cuite.",
+    "param": {
+      "_t_EmissionRate": "Combien d'événements déclencher par seconde.",
+      "_t_Duration": "Combien de temps continuer d'émettre. `inf` dure tout l'effet : `rcp(inf)` se replie à 0 à la compilation, donc le bytecode est celui qu'une durée de vie illimitée écrite à la main aurait produit."
+    }
+  },
+  "stdlib/templates::TerminationTemplate": {
+    "brief": "Un calque qui survit à l'effet d'une image, pour qu'un événement final ait d'où partir. Il incrémente un minuteur dès que l'effet cesse de tourner et se tue quand le minuteur sature.",
+    "param": {
+      "_ev_Trigger": "L'événement que ce calque déclare et laisse au graphe le soin de câbler. C'est un paramètre nommé pour qu'appliquer le modèle à un calque existant renomme son propre événement au lieu d'en ajouter un second à côté."
+    }
+  },
+  "stdlib/templates::TexturedBillboard": {
+    "brief": "Le panneau texturé simple — de loin le renderer le plus courant du corpus. L'enfant ajoute encore ce dont il a besoin : la fusion est additive, un modèle n'a donc pas à anticiper chaque variante.",
+    "param": {
+      "_t_Texture": "L'image dessinée sur le quadrilatère.",
+      "_t_Mode": "Comment le quadrilatère est orienté face à la caméra."
+    }
+  },
+  "stdlib/templates::SoftBillboard": {
+    "brief": "Un panneau qui s'estompe à l'approche de la géométrie de la scène au lieu d'y découper une arête franche.",
+    "param": {
+      "_t_Texture": "L'image dessinée sur le quadrilatère.",
+      "_t_Softness": "À quelle distance de la géométrie le fondu commence. Plus grand, plus doux.",
+      "_t_Mode": "Comment le quadrilatère est orienté face à la caméra."
+    }
+  },
+  "stdlib/templates::AtlasBillboard": {
+    "brief": "Un panneau de folioscope. La particule choisit son image via l'entrée `TextureID` du renderer, que le moteur borne à `frameCount - 1`.",
+    "param": {
+      "_t_Texture": "L'image dessinée sur le quadrilatère.",
+      "_t_SubDiv": "La grille sous forme `(colonnes, lignes)`, chacune de 1 à 64. Les images sont disposées par lignes, les colonnes variant le plus vite, l'image 0 en haut.",
+      "_t_Mode": "Comment le quadrilatère est orienté face à la caméra.",
+      "_t_MotionVectors": "La carte de vecteurs de mouvement servant à fondre entre les images. Par défaut, la texture de distorsion du moteur lui-même."
+    }
+  },
+  "stdlib/templates::SingleShot": {
+    "brief": "La chronologie à une seule entrée que lit `RootLayerTemplate` : une entrée à t = 0, l'effet émet donc une fois au démarrage. C'est `sd0` dans la plupart des bundles."
+  },
+  "stdlib/templates::SimpleCylinder": {
+    "brief": "Un volume cylindrique de naissance. Sa position d'espace de travail vient EN PREMIER et est un paramètre, car l'ordre des champs d'un échantillonneur survit jusqu'au .pkb et les champs de l'enfant sont ajoutés après ceux du modèle — tout ce qui doit venir en tête doit donc venir du modèle.",
+    "param": {
+      "_t_Position": "La coordonnée du nœud dans l'espace de travail de l'éditeur. Elle vient en tête car l'ordre des champs survit jusqu'au .pkb.",
+      "_t_Radius": "Le rayon extérieur du cylindre."
+    }
+  },
+  "stdlib/vec::vec.UP": {
+    "brief": "L'axe vertical du monde, +z : WC3 est en Z-up. La gravité tire selon `-UP`."
+  },
+  "stdlib/vec::vec.FORWARD": {
+    "brief": "L'axe avant, +y, utilisé comme direction de repli quand un vecteur est trop court pour être normalisé."
+  },
+  "stdlib/vec::vec.RIGHT": {
+    "brief": "L'axe vers la droite, +x, qui complète la base directe avec `FORWARD` et `UP`."
+  },
+  "stdlib/vec::vec.length_sq": {
+    "brief": "Longueur au carré — moins coûteuse que `length` quand on ne fait que comparer des distances, car elle évite la racine.",
+    "param": {
+      "v": "Le vecteur à mesurer."
+    },
+    "result": "Le produit scalaire de `v` avec lui-même."
+  },
+  "stdlib/vec::vec.safe_normalize": {
+    "brief": "`normalize(v)`, mais renvoie `fallback` pour un vecteur (quasi) nul au lieu de NaN — le `safe_normalize` de PopcornFX.",
+    "param": {
+      "v": "Le vecteur à normaliser.",
+      "fallback": "La direction employée quand `v` est trop court pour en avoir une.",
+      "epsilon": "La longueur en dessous de laquelle `v` compte comme nul."
+    },
+    "result": "Le vecteur unitaire, ou `fallback`."
+  },
+  "stdlib/vec::vec.safe_normalize_template": {
+    "brief": "`normalize(v)`, mais `fallback` pour un vecteur plus court que 2.5e-7 : le modèle « safe normalize » de PopcornFX Core, qui compare avec `<=` là où le `safe_normalize` intégré compare avec `<`.",
+    "param": {
+      "v": "Le vecteur à normaliser.",
+      "fallback": "La direction à utiliser quand `v` est trop court pour en avoir une."
+    },
+    "result": "Le vecteur unitaire, ou `fallback`."
+  },
+  "stdlib/vec::vec.normalize": {
+    "brief": "`v` ramené à une longueur unité : le `normalize` de PopcornFX. NaN pour un vecteur nul ; voir `safe_normalize`.",
+    "param": {
+      "v": "Le vecteur à normaliser."
+    },
+    "result": "Le vecteur unitaire dans la direction de `v`."
+  },
+  "stdlib/vec::vec.length": {
+    "brief": "La longueur de `v` : le `length` de PopcornFX.",
+    "param": {
+      "v": "Le vecteur à mesurer."
+    },
+    "result": "Sa longueur euclidienne."
+  },
+  "stdlib/vec::vec.dist": {
+    "brief": "Distance entre deux points.",
+    "param": {
+      "a": "Le premier point.",
+      "b": "Le second point."
+    },
+    "result": "La distance qui les sépare."
+  },
+  "stdlib/vec::vec.dir_to": {
+    "brief": "Vecteur unitaire pointant de `a` vers `b`, ou `fallback` s'ils coïncident.",
+    "param": {
+      "a": "Le point de départ.",
+      "b": "Le point visé.",
+      "fallback": "La direction employée quand `a` et `b` sont le même point."
+    },
+    "result": "La direction unitaire de `a` vers `b`."
+  },
+  "stdlib/vec::vec.project": {
+    "brief": "Projection de `a` sur `b` — la part de `a` qui suit `b`.",
+    "param": {
+      "a": "Le vecteur projeté.",
+      "b": "Le vecteur sur lequel on projette. Il n'a pas besoin d'être unitaire."
+    },
+    "result": "La composante de `a` selon `b`."
+  },
+  "stdlib/vec::vec.reflect": {
+    "brief": "Réfléchit `v` par rapport à une normale UNITAIRE `n`. Une normale non normalisée met la réflexion à l'échelle et fait dériver le résultat.",
+    "param": {
+      "v": "Le vecteur entrant.",
+      "n": "La normale de la surface, qui doit être unitaire."
+    },
+    "result": "Le vecteur réfléchi."
+  },
+  "stdlib/vec::vec.with_x": {
+    "brief": "Reconstruit un f32x3 avec la voie x remplacée.",
+    "param": {
+      "v": "Le vecteur à reconstruire.",
+      "x": "La nouvelle valeur de la voie x."
+    },
+    "result": "Le vecteur avec sa voie x remplacée."
+  },
+  "stdlib/vec::vec.with_y": {
+    "brief": "Reconstruit un f32x3 avec la voie y remplacée.",
+    "param": {
+      "v": "Le vecteur à reconstruire.",
+      "y": "La nouvelle valeur de la voie y."
+    },
+    "result": "Le vecteur avec sa voie y remplacée."
+  },
+  "stdlib/vec::vec.with_z": {
+    "brief": "Reconstruit un f32x3 avec la voie z remplacée. Dans le monde Z-up de WC3, c'est la hauteur.",
+    "param": {
+      "v": "Le vecteur à reconstruire.",
+      "z": "La nouvelle valeur de la voie z."
+    },
+    "result": "Le vecteur avec sa voie z remplacée."
+  },
+  "stdlib/vec::vec.scale_xy": {
+    "brief": "Met à l'échelle uniquement le plan horizontal, x et y dans le monde Z-up de WC3, sans toucher à la hauteur — étale une explosion sans la soulever.",
+    "param": {
+      "v": "Le vecteur à mettre à l'échelle.",
+      "s": "Le facteur appliqué à x et y."
+    },
+    "result": "Le vecteur avec x et y mis à l'échelle et z, la hauteur, inchangé."
+  },
+  "stdlib/xform::xform.Filter.None": {
+    "brief": "Aucune partie de la transformation. Un masque sans bits de filtre est une erreur de programmation, pas une opération nulle — le moteur lève une assertion."
+  },
+  "stdlib/xform::xform.Filter.Translate": {
+    "brief": "Applique la translation. C'est le seul bit qui sépare la variante point de la variante direction de la même fonction moteur : un point se translate, pas une direction."
+  },
+  "stdlib/xform::xform.Filter.Rotate": {
+    "brief": "Applique la rotation. Un quaternion ne peut jamais qu'être tourné : la surcharge d'orientation exige que ce soit le filtre ENTIER et non seulement une partie."
+  },
+  "stdlib/xform::xform.Filter.Scale": {
+    "brief": "Applique l'échelle. Un masque du corpus l'active : `L2W_PointScaled`, la position de naissance d'un calque qui suit l'échelle de son émetteur."
+  },
+  "stdlib/xform::xform.Filter.Full": {
+    "brief": "Le masque du champ : les trois parties. Servez-vous-en pour LIRE le filtre d'un masque. Un masque du corpus demande les trois à la fois, `L2W_PointScaled`."
+  },
+  "stdlib/xform::xform.Space.World": {
+    "brief": "L'espace monde — celui que tout partage."
+  },
+  "stdlib/xform::xform.Space.WorldPrev": {
+    "brief": "L'espace monde tel qu'il était au DÉBUT de cette image. Le lire, c'est ainsi qu'on construit un delta par image."
+  },
+  "stdlib/xform::xform.Space.EmitterLocal": {
+    "brief": "L'espace propre de l'émetteur. Seul le sens local émetteur → monde lit la transformation de naissance par particule ; tout autre sens reçoit la transformation de l'émetteur diffusée à toutes."
+  },
+  "stdlib/xform::xform.Space.EmitterLocalPrev": {
+    "brief": "L'espace de l'émetteur tel qu'il était au début de cette image. L'appairer avec `EmitterLocal` est une vraie transformation que le moteur refuse tout simplement : toute paire locale des deux côtés court-circuite vers une copie de flux."
+  },
+  "stdlib/xform::xform.Space.MaskPrev": {
+    "brief": "Le bit 0 d'un champ d'espace : « la transformation de l'image PRÉCÉDENTE ». Le moteur le lit séparément du bit de localité, d'où leur libre combinaison."
+  },
+  "stdlib/xform::xform.Space.MaskSpace": {
+    "brief": "Le bit 1 d'un champ d'espace : « local à l'émetteur » plutôt que monde."
+  },
+  "stdlib/xform::xform.Space.MaskFull": {
+    "brief": "Les deux bits d'un champ d'espace, pour le lire dans un masque plutôt que pour en construire un."
+  },
+  "stdlib/xform::xform.Mask": {
+    "brief": "Construit le mot de masque : ce qu'il faut transformer, l'espace que l'on quitte, l'espace où l'on entre. `enter`/`leave` portent les noms que le MOTEUR leur donne, donc `xform_l2w` vaut `enter = EmitterLocal, leave = World`.",
+    "param": {
+      "filter": "Quelle partie de la transformation s'applique, parmi `Filter`. Un masque sans bits de filtre est une erreur.",
+      "enter": "L'espace que l'on quitte — la SOURCE, malgré le nom. Par défaut `World`.",
+      "leave": "L'espace où l'on entre — la DESTINATION. Par défaut `World`, la moitié qu'un appel `w2l` laisse inchangée."
+    },
+    "result": "Le mot de masque compacté. Il est replié à la compilation, donc nommer les parties ne coûte rien."
+  },
+  "stdlib/xform::xform.L2W_Point": {
+    "brief": "Fait passer un POINT de l'espace local de l'émetteur à l'espace monde, par translation seule. Le corpus écrit celle-ci et non la variante rotative partout où l'entrée est l'origine, car faire tourner zéro est l'identité."
+  },
+  "stdlib/xform::xform.L2W_PointRot": {
+    "brief": "Fait sortir un point de l'espace local de l'émetteur en le faisant aussi tourner — le masque habituel de position de naissance."
+  },
+  "stdlib/xform::xform.L2W_Dir": {
+    "brief": "Fait sortir une DIRECTION de l'espace local de l'émetteur — rotation seule, jamais de translation."
+  },
+  "stdlib/xform::xform.W2L_Dir": {
+    "brief": "Ramène une direction de l'espace monde vers l'espace local de l'émetteur."
+  },
+  "stdlib/xform::xform.W2L_Point": {
+    "brief": "Ramène un point de l'espace monde vers l'espace local de l'émetteur — le sens dans lequel un échantillonneur de forme veut son entrée."
+  },
+  "stdlib/xform::xform.W2L_PointPrev": {
+    "brief": "Comme `W2L_Point`, mais face aux transformations de l'image PRÉCÉDENTE des deux côtés — la forme qu'emploie un delta par image. C'est le seul masque du corpus qui active le bit Prev."
+  },
+  "stdlib/xform::xform.W2W_PointFromPrev": {
+    "brief": "Porte un point de l'espace monde de l'image PRÉCÉDENTE dans celui de cette image : le mouvement de l'émetteur sur l'image, appliqué au point. C'est ainsi qu'une particule suit un émetteur qui se déplace."
+  },
+  "stdlib/xform::xform.L2W_PointScaled": {
+    "brief": "Fait sortir un point de l'espace local de l'émetteur en le tournant et en le METTANT À L'ÉCHELLE aussi : la position de naissance d'un calque qui suit l'échelle de son émetteur."
+  },
+  "stdlib/xform::xform.W2L_PointTranslate": {
+    "brief": "Ramène un point de l'espace monde dans l'espace local de l'émetteur, par translation seulement : l'inverse de `L2W_Point`."
+  },
+  "stdlib/popcorn::popcorn.EventMultiplier": {
+    "brief": "Le `EventMultiplier` de PopcornFX : un calque racine qui déclenche `__e_Child` `_t_Count` fois sur l'image (`scene.dt * rate` pour un taux par seconde) et meurt quand l'effet s'arrête.",
+    "param": {
+      "_t_Count": "Combien en déclencher sur cette image : `scene.dt * rate` pour un taux par seconde.",
+      "_t_Life": "La durée de vie du calque, en secondes ; `inf` vit jusqu'à l'arrêt de l'effet."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEventMultiplier": {
+    "brief": "`EventMultiplier` à un taux que le multiplicateur d'émission de l'unité met à l'échelle : un calque racine qui déclenche `__e_Child` `_t_Rate` fois par seconde à un multiplicateur de 1 et meurt quand l'effet s'arrête.",
+    "param": {
+      "_t_Rate": "Combien en déclencher par seconde à un multiplicateur d'émission de 1.",
+      "_t_Life": "La durée de vie du calque, en secondes ; `inf` vit jusqu'à l'arrêt de l'effet."
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_09e45c63": {
+    "brief": "Un calque racine qui déclenche `__e_Child` `_t_Count` fois sur l'image et meurt quand l'effet s'arrête : le programme de `EventMultiplier`, d'un modèle de la bibliothèque propre au jeu.",
+    "param": {
+      "_t_Count": "Combien en déclencher sur cette image : `scene.dt * rate` pour un taux par seconde.",
+      "_t_Life": "La durée de vie du calque, en secondes ; `inf` vit jusqu'à l'arrêt de l'effet."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_09e45c63": {
+    "brief": "Un calque racine qui déclenche `__e_Child` `_t_Rate` fois par seconde à un multiplicateur d'émission de 1 et meurt quand l'effet s'arrête : `Emitter_09e45c63` à un taux que le multiplicateur d'émission de l'unité met à l'échelle.",
+    "param": {
+      "_t_Rate": "Combien en déclencher par seconde à un multiplicateur d'émission de 1.",
+      "_t_Life": "La durée de vie du calque, en secondes ; `inf` vit jusqu'à l'arrêt de l'effet."
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_23a77ec7": {
+    "brief": "Un calque racine qui déclenche `__e_Child` `_t_Count` fois sur l'image et meurt quand l'effet s'arrête : le programme de `EventMultiplier`, d'un modèle de la bibliothèque propre au jeu dont le nombre suit d'ordinaire le multiplicateur d'émission de l'unité.",
+    "param": {
+      "_t_Count": "Combien en déclencher sur cette image, d'ordinaire `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`.",
+      "_t_Life": "La durée de vie du calque, en secondes ; `inf` vit jusqu'à l'arrêt de l'effet."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_23a77ec7": {
+    "brief": "Un calque racine qui déclenche `__e_Child` `_t_Rate` fois par seconde à un multiplicateur d'émission de 1 et meurt quand l'effet s'arrête : `Emitter_23a77ec7` avec le nombre qu'il a d'ordinaire, qui suit le multiplicateur d'émission de l'unité.",
+    "param": {
+      "_t_Rate": "Combien en déclencher par seconde à un multiplicateur d'émission de 1.",
+      "_t_Life": "La durée de vie du calque, en secondes ; `inf` vit jusqu'à l'arrêt de l'effet."
+    }
+  },
+  "stdlib/popcorn::popcorn.InfiniteLife": {
+    "brief": "Le `InfiniteLife` de PopcornFX avec son `DeathDelay` par défaut d'une seconde, sur un calque racine à lui : il vit jusqu'à l'arrêt de l'effet et meurt une seconde après."
+  },
+  "stdlib/popcorn::popcorn.StopTimer_4f9baf59": {
+    "brief": "Un calque racine qui vit jusqu'à l'arrêt de l'effet et meurt à la première image suivante, d'un modèle de minuteur d'arrêt de la bibliothèque propre au jeu (`InfiniteLife` sans délai)."
+  },
+  "stdlib/physics::physics.velocity_between": {
+    "brief": "La vitesse qui a porté une particule de `previous` à `current` pendant cette image : leur différence divisée par la durée de l'image, et zéro pour une image sans durée, où il n'y a pas de mouvement à diviser.",
+    "param": {
+      "previous": "Où était la particule au début de l'image.",
+      "current": "Où elle est maintenant."
+    },
+    "result": "La vitesse, par seconde."
+  },
+  "stdlib/life::life.intro_loop_time": {
+    "brief": "Le point d'une courbe à échantillonner `scene.time` secondes après la naissance d'une particule à `birth` : pendant les `intro` premières secondes elle parcourt la première part `intro_share` de la courbe, puis elle boucle sur le reste toutes les `loop_seconds`.",
+    "param": {
+      "birth": "Quand la particule est née (`scene.time` stocké dans `init`).",
+      "intro": "Combien de temps, en secondes, la première partie de la courbe se joue une fois.",
+      "intro_share": "Quelle part de la courbe, de 0 à 1, est cette première partie.",
+      "loop_seconds": "Combien de temps dure une boucle sur le reste de la courbe."
+    },
+    "result": "Le paramètre de la courbe, de 0 à 1."
+  }
+}

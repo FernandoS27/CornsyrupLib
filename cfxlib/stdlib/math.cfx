@@ -1,0 +1,225 @@
+// stdlib/math.cfx — scalar and generic math helpers.
+//
+// Everything here is plain CFX and is INLINED at build time; there is no runtime cost and no
+// engine surface. Copy this file into a bundle and edit it if you want a variant.
+//
+// Everything lives under `math.` — `math.remap(x, 0.0, 2.0)`, `math.PI`. A library that puts
+// bare `remap` / `PI` into a bundle's global scope collides with the bundle's own names sooner
+// or later, and the collision surfaces as a load error in a file the author did not write.
+// The one exception is `degrees` below, which is a namespace in its own right.
+
+namespace math {
+
+    /// @brief Degrees to radians, as a multiplier. The engine's trigonometry is all in radians, so this is what a human-authored angle has to pass through.
+    const DEG2RAD : f32 = 0.017453292;
+    /// @brief Radians to degrees, as a multiplier — the way back from an engine angle to one a person can read.
+    const RAD2DEG : f32 = 57.295776;
+    /// @brief Half a turn in radians — the ratio of a circle's circumference to its diameter.
+    const PI      : f32 = 3.1415927;
+    /// @brief A full turn in radians. `rand(0.0, TAU)` is the idiom for a random angle around a circle.
+    const TAU     : f32 = 6.2831855;
+
+    /// @brief Convert an angle from degrees to radians.
+    ///
+    /// @param d The angle in degrees.
+    ///
+    /// @result The same angle in radians.
+    fn deg_to_rad(d: f32) -> f32 { d * DEG2RAD }
+    /// @brief Convert an angle from radians to degrees.
+    ///
+    /// @param r The angle in radians.
+    ///
+    /// @result The same angle in degrees.
+    fn rad_to_deg(r: f32) -> f32 { r * RAD2DEG }
+
+    // --- ranges -------------------------------------------------------------------------------
+    //
+    // NOT PopcornFX's `remap`. Its script builtin maps the other way and does not clamp, as a bake
+    // of each shows:
+    //
+    //     PopcornFX script                   CFX
+    //     remap(x, a, b)                     lerp(a, b, x)           [0, 1] onto [a, b]
+    //     remap(x, a, b, c, d)               math.remap_range(x, a, b, c, d, clamped = false)
+    //     linearstep(a, b, x)                math.remap(x, a, b)     clamped
+    //     smoothstep(a, b, x)                math.smoothstep(a, b, x)
+    //
+    // So code ported from a `.pkfx` turns `remap(x, a, b)` into `lerp`, not into `math.remap`.
+
+    /// Map `x` from the range [lo, hi] onto [0, 1]. Clamped by default.
+    /// @brief Map `x` from the range [lo, hi] onto [0, 1]. Clamped by default.
+    ///
+    /// @param x The value to map.
+    /// @param lo The value that maps to 0.
+    /// @param hi The value that maps to 1.
+    /// @param clamped Whether to hold the result inside [0, 1]. False lets it run past either end.
+    ///
+    /// @result Where `x` sits between `lo` and `hi`.
+    fn remap(x: f32, lo: f32, hi: f32, clamped: bool = true) -> f32 {
+        let t : f32 = (x - lo) * rcp(hi - lo);
+        select(clamped, saturate(t), t)
+    }
+
+    /// The unclamped inverse-lerp — where `x` sits between `lo` and `hi`.
+    /// @brief The unclamped inverse-lerp — where `x` sits between `lo` and `hi`, allowed to run past either end.
+    ///
+    /// @param x The value to map.
+    /// @param lo The value that maps to 0.
+    /// @param hi The value that maps to 1.
+    ///
+    /// @result The unclamped position, which may be below 0 or above 1.
+    fn inv_lerp(x: f32, lo: f32, hi: f32) -> f32 { (x - lo) * rcp(hi - lo) }
+
+    /// Map `x` from [in_lo, in_hi] onto [out_lo, out_hi].
+    /// @brief Map `x` from [in_lo, in_hi] onto [out_lo, out_hi] — the general two-range remap.
+    ///
+    /// @param x The value to map.
+    /// @param in_lo The input value that maps to `out_lo`.
+    /// @param in_hi The input value that maps to `out_hi`.
+    /// @param out_lo What the low end becomes.
+    /// @param out_hi What the high end becomes.
+    /// @param clamped Whether to hold the result inside the output range.
+    ///
+    /// @result The remapped value.
+    fn remap_range(x: f32, in_lo: f32, in_hi: f32, out_lo: f32, out_hi: f32, clamped: bool = true) -> f32 {
+        lerp(out_lo, out_hi, remap(x, in_lo, in_hi, clamped = clamped))
+    }
+
+    /// @brief Hold a value inside [0, 1].
+    ///
+    /// @param x The value to map.
+    ///
+    /// @result The value, clamped.
+    fn clamp01(x: f32) -> f32 { saturate(x) }
+
+    /// Hermite smoothstep over [e0, e1].
+    /// @brief Hermite smoothstep over [e0, e1] — a ramp whose slope is zero at both ends, so it starts and stops without a visible corner.
+    ///
+    /// @param e0 Where the ramp starts.
+    /// @param e1 Where the ramp finishes.
+    /// @param x The value to map.
+    ///
+    /// @result The smoothed value, 0 to 1.
+    fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
+        let t : f32 = remap(x, e0, e1);
+        t * t * (3.0 - 2.0 * t)
+    }
+
+    // --- generic -------------------------------------------------------------------------------
+
+    /// Linear blend, for any float scalar or vector. `t` is a scalar and broadcasts.
+    /// @brief Linear blend, for any float scalar or vector. `t` is a scalar and broadcasts, and is NOT clamped — pass it through `clamp01` first if it might run out of range.
+    ///
+    /// @param a The value at t = 0.
+    /// @param b The value at t = 1.
+    /// @param t Where between them to land.
+    ///
+    /// @result The blended value.
+    fn blend<T: float>(a: T, b: T, t: f32) -> T { a + (b - a) * t }
+
+    /// Move `cur` toward `target` by a saturated `rate` — the standard per-frame ease.
+    /// @brief Move `cur` toward `target` by a saturated `rate` — the standard per-frame ease. Frame-rate dependent by construction: multiply `rate` by `scene.dt` if you want it not to be.
+    ///
+    /// @param cur Where the value is now.
+    /// @param target Where it is heading.
+    /// @param rate How much of the remaining gap to close this call. Saturated, so 1 arrives at once.
+    ///
+    /// @result The value after one step.
+    fn approach<T: float>(cur: T, target: T, rate: f32) -> T { cur + (target - cur) * saturate(rate) }
+
+    /// Component-wise clamp to [lo, hi], for any float scalar or vector.
+    /// @brief Component-wise clamp to [lo, hi], for any float scalar or vector.
+    ///
+    /// @param v The value to clamp.
+    /// @param lo The floor, per component.
+    /// @param hi The ceiling, per component.
+    ///
+    /// @result The clamped value.
+    fn clamp_to<T: float>(v: T, lo: T, hi: T) -> T { min(max(v, lo), hi) }
+
+    // --- guarded arithmetic ---------------------------------------------------------------------
+
+    // NOTE: `select(cond, whenTrue, whenFalse)` — the CONDITION comes first, then the true value.
+    // Both arms are always evaluated (there is no branching), so these guard the *result*, not the
+    // division: `rcp(0)` still executes and yields ±inf, and `select` then discards it.
+
+    /// `1/x`, or `fallback` when `x` is 0 (the engine's `rcp(0)` is ±inf, which propagates as NaN).
+    /// @brief `1/x`, or `fallback` when `x` is 0 — the engine's `rcp(0)` is ±inf, which propagates as NaN. Guards the RESULT, not the division: both arms always run.
+    ///
+    /// @param x The value to invert.
+    /// @param fallback What to answer when `x` is exactly 0.
+    ///
+    /// @result The reciprocal, or the fallback.
+    fn safe_rcp(x: f32, fallback: f32 = 0.0) -> f32 { select(x == 0.0, fallback, rcp(x)) }
+
+    /// `a/b`, or `fallback` when `b` is 0.
+    /// @brief `a/b`, or `fallback` when `b` is 0. Guards the RESULT, not the division — the divide still runs and its ±inf is discarded.
+    ///
+    /// @param a The numerator.
+    /// @param b The denominator.
+    /// @param fallback What to answer when `b` is exactly 0.
+    ///
+    /// @result The quotient, or the fallback.
+    fn safe_div(a: f32, b: f32, fallback: f32 = 0.0) -> f32 { select(b == 0.0, fallback, a * rcp(b)) }
+
+    /// `sign(x)`, but returns `zero` exactly at 0 instead of the engine's 0.
+    /// @brief `sign(x)`, but returns `zero` exactly at 0 instead of the engine's own answer — for when "neither direction" needs to mean something specific.
+    ///
+    /// @param x The value whose sign is wanted.
+    /// @param zero What to answer exactly at 0.
+    ///
+    /// @result -1, `zero`, or +1.
+    fn sign_or(x: f32, zero: f32 = 0.0) -> f32 { select(x == 0.0, zero, sign(x)) }
+}
+
+// --- degrees ---------------------------------------------------------------------------------
+
+/// The `radians.*` intrinsic family, in degrees. Mirrors the engine's own dotted naming so
+/// `degrees.sin(78.0)` reads exactly like `radians.sin(1.36)`.
+///
+/// It sits BESIDE `math` rather than inside it for exactly that reason: `math.degrees.sin` no
+/// longer mirrors anything, and the parallel with `radians.` is the whole point of the name.
+namespace degrees {
+    /// @brief The sine of an angle given in degrees.
+    ///
+    /// @param x The angle in degrees.
+    ///
+    /// @result The sine, -1 to 1.
+    fn sin(x: f32) -> f32 { radians.sin(x * math.DEG2RAD) }
+    /// @brief The cosine of an angle given in degrees.
+    ///
+    /// @param x The angle in degrees.
+    ///
+    /// @result The cosine, -1 to 1.
+    fn cos(x: f32) -> f32 { radians.cos(x * math.DEG2RAD) }
+    /// @brief The tangent of an angle given in degrees.
+    ///
+    /// @param x The angle in degrees.
+    ///
+    /// @result The tangent, unbounded near 90 degrees.
+    fn tan(x: f32) -> f32 { radians.tan(x * math.DEG2RAD) }
+    /// @brief The inverse sine, answered in degrees.
+    ///
+    /// @param x The ratio to take the inverse function of.
+    ///
+    /// @result The angle in degrees.
+    fn asin(x: f32) -> f32 { radians.asin(x) * math.RAD2DEG }
+    /// @brief The inverse cosine, answered in degrees.
+    ///
+    /// @param x The ratio to take the inverse function of.
+    ///
+    /// @result The angle in degrees.
+    fn acos(x: f32) -> f32 { radians.acos(x) * math.RAD2DEG }
+    /// @brief The inverse tangent, answered in degrees. Use `atan2` when you have both legs, so the quadrant survives.
+    ///
+    /// @param x The ratio to take the inverse function of.
+    ///
+    /// @result The angle in degrees.
+    fn atan(x: f32) -> f32 { radians.atan(x) * math.RAD2DEG }
+    /// @brief The angle of the vector (x, y), answered in degrees over the full circle — unlike `atan`, the signs of both arguments are kept, so the quadrant survives.
+    ///
+    /// @param y The vertical leg.
+    /// @param x The horizontal leg.
+    ///
+    /// @result The angle in degrees.
+    fn atan2(y: f32, x: f32) -> f32 { radians.atan2(y, x) * math.RAD2DEG }
+}

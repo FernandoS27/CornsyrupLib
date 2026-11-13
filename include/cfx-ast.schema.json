@@ -1,0 +1,3519 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ast",
+  "description": "A bundle's syntax tree: each of its files, parsed.",
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/File"
+      }
+    },
+    "format": {
+      "description": "Always `\"cfx-ast\"`.",
+      "type": "string"
+    },
+    "version": {
+      "description": "The tree's version: 1.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "files"
+  ],
+  "$defs": {
+    "Arg": {
+      "description": "An argument, `value` or `name = value`.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ]
+    },
+    "BindInput": {
+      "description": "`\"field\" -> Slot;`. The slot is as written: `Size`, `Color@3`.",
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "string"
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "slot"
+      ]
+    },
+    "Call": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Arg"
+          }
+        },
+        "callee": {
+          "description": "The called name, dotted: `lerp`, `EventStream.generate`, `physics.integrate`.",
+          "type": "string"
+        },
+        "global": {
+          "type": "boolean"
+        },
+        "object": {
+          "description": "For `\"obj\".f(…)`, the quoted receiver; `callee` is then the method.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "callee",
+        "args"
+      ]
+    },
+    "ChildField": {
+      "description": "One field of a child's one-liner.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ]
+    },
+    "Comments": {
+      "description": "The comments around a node, each as written (`// …` or `/* … */`).",
+      "type": "object",
+      "properties": {
+        "after": {
+          "description": "The comment after the node, on its last line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "before": {
+          "description": "The comments on the lines before the node.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "end": {
+          "description": "For a block, the comments after its last member, before its `}`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Expr": {
+      "description": "An expression.",
+      "oneOf": [
+        {
+          "description": "`42`, `-7`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "int"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`3.0`, `nan@0x7FC00001`, `-inf`.",
+          "type": "object",
+          "properties": {
+            "bits": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "float"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "`true`, `false`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "bool"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`void`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "void"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "`\"text\"`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`raw\"text\"`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "raw"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`#f32x3(1.0, 0.0, 0.0)`.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "vector"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "type",
+            "items"
+          ]
+        },
+        {
+          "description": "A name: a local, a constant, an external, a renderer property, a member swizzle\n(`scene.dt`, `rend0.Atlas.SubDiv`, `v.xyz`); `::name` with `global`.",
+          "type": "object",
+          "properties": {
+            "global": {
+              "type": "boolean"
+            },
+            "kind": {
+              "type": "string",
+              "const": "path"
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name"
+          ]
+        },
+        {
+          "description": "`ext \"name\"`: an external whose name is not an identifier.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "ext"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`a + b`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "binary"
+            },
+            "lhs": {
+              "$ref": "#/$defs/Expr"
+            },
+            "op": {
+              "type": "string"
+            },
+            "rhs": {
+              "$ref": "#/$defs/Expr"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "op",
+            "lhs",
+            "rhs"
+          ]
+        },
+        {
+          "description": "`-x`, `!x` (and `neg(x)`, `lnot(x)`).",
+          "type": "object",
+          "properties": {
+            "arg": {
+              "$ref": "#/$defs/Expr"
+            },
+            "kind": {
+              "type": "string",
+              "const": "unary"
+            },
+            "op": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "op",
+            "arg"
+          ]
+        },
+        {
+          "description": "`x as T`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "cast"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "type"
+          ]
+        },
+        {
+          "description": "`transmute::<T>(x)`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "transmute"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "type"
+          ]
+        },
+        {
+          "description": "`f(a, k = b)`, `obj.f(…)`, `\"obj\".f(…)`, with an optional `: T` result type.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Arg"
+              }
+            },
+            "callee": {
+              "description": "The called name, dotted: `lerp`, `EventStream.generate`, `physics.integrate`.",
+              "type": "string"
+            },
+            "global": {
+              "type": "boolean"
+            },
+            "kind": {
+              "type": "string",
+              "const": "call"
+            },
+            "object": {
+              "description": "For `\"obj\".f(…)`, the quoted receiver; `callee` is then the method.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "result_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "callee",
+            "args"
+          ]
+        },
+        {
+          "description": "`(expr).xyz`: lanes of a value that is not a name.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "member"
+            },
+            "lanes": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "lanes"
+          ]
+        },
+        {
+          "description": "`select(cond, then, else)`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "$ref": "#/$defs/Expr"
+            },
+            "else": {
+              "$ref": "#/$defs/Expr"
+            },
+            "kind": {
+              "type": "string",
+              "const": "select"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "then": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cond",
+            "then",
+            "else"
+          ]
+        },
+        {
+          "description": "`swz<dst|src>(x: m0 m1 m2)`.",
+          "type": "object",
+          "properties": {
+            "dst": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "swz"
+            },
+            "mask": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0
+              },
+              "maxItems": 3,
+              "minItems": 3
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "src": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "dst",
+            "value",
+            "mask"
+          ]
+        },
+        {
+          "description": "`ctor<T>(a, …)`.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "ctor"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "type",
+            "args"
+          ]
+        },
+        {
+          "description": "`reint<dst|src>(x)`.",
+          "type": "object",
+          "properties": {
+            "dst": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "reint"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "src": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "dst",
+            "value"
+          ]
+        },
+        {
+          "description": "`conv<dst|src>(x)`.",
+          "type": "object",
+          "properties": {
+            "dst": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "conv"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "src": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "dst",
+            "value"
+          ]
+        },
+        {
+          "description": "`reg(0xHHHHHHHH)`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "reg"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`call(OBJ, \"func\", flags, target, slot, RT){ tag: arg, … }`.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TaggedArg"
+              }
+            },
+            "flags": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "func": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "raw_call"
+            },
+            "object": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "result_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "slot": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "target": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "func",
+            "flags",
+            "target",
+            "slot",
+            "args"
+          ]
+        }
+      ]
+    },
+    "File": {
+      "description": "One file of the bundle, or a module it imports.",
+      "type": "object",
+      "properties": {
+        "end_comments": {
+          "description": "The comments after the last item.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "library": {
+          "description": "A module of the library, there to be read. A build reads the library itself, so it is not\nprinted or built.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Its name in the bundle (`code.cfx`, `lib/helpers.cfx`), or a library module's path in its\nlibrary (`stdlib/physics.cfx`).",
+          "type": "string"
+        },
+        "text": {
+          "description": "A legacy file the tree does not read (`fields.cfx`, `events.cfx`), as written. It has no\nitems, and is printed as it is.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "items"
+      ]
+    },
+    "Fires": {
+      "description": "`fires &LAYER.\"event\"`.",
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "string"
+        },
+        "from": {
+          "$ref": "#/$defs/LayerRef"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "event"
+      ]
+    },
+    "Generic": {
+      "description": "A type parameter: `T` or `T: vec + float`.",
+      "type": "object",
+      "properties": {
+        "bounds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "GraphStmt": {
+      "description": "One statement of the graph.",
+      "oneOf": [
+        {
+          "description": "`key = value;`, a field of the graph node.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "field"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "$ref": "#/$defs/Value"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "key",
+            "value"
+          ]
+        },
+        {
+          "description": "`spawn TARGETS;`: the effect root's event.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "spawn"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "targets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LayerRef"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "targets"
+          ]
+        },
+        {
+          "description": "`&LAYER emits [\"event\"] [-> TARGETS];`: a layer's event.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "event": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "from": {
+              "$ref": "#/$defs/LayerRef"
+            },
+            "kind": {
+              "type": "string",
+              "const": "emits"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "targets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LayerRef"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "from"
+          ]
+        },
+        {
+          "description": "`entry [\"name\"] [fires &LAYER.\"event\"];`: an entry slot.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "fires": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Fires"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "const": "entry"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        }
+      ]
+    },
+    "Item": {
+      "description": "A top-level declaration.",
+      "oneOf": [
+        {
+          "description": "`header { … }` (effect.cfx): the bundle's metadata and the effect's own fields.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "header"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "members"
+          ]
+        },
+        {
+          "description": "`attributes { … }` (effect.cfx): the effect's attributes and attribute samplers.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "attributes"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "members"
+          ]
+        },
+        {
+          "description": "`graph { … }` (effect.cfx): the layers' spawn graph.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "graph"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "stmts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/GraphStmt"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "stmts"
+          ]
+        },
+        {
+          "description": "`node H : Class { … }` (effect.cfx): any other object, the objects it owns nested inside.",
+          "type": "object",
+          "properties": {
+            "class": {
+              "type": "string"
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "handle": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "node"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "owner": {
+              "description": "The field of the enclosing node that owns this one; none at the top level.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "handle",
+            "class",
+            "members"
+          ]
+        },
+        {
+          "description": "`layer NAME { … }` in effect.cfx: a layer's properties, the older place for them.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "layer_properties"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "members"
+          ]
+        },
+        {
+          "description": "`layer NAME { … }` (code.cfx): a layer's properties, events and programs.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "extends": {
+              "description": "The templates it extends, by name.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "layer"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "members"
+          ]
+        },
+        {
+          "description": "`sampler H : Kind { … }` (samplers.cfx).",
+          "type": "object",
+          "properties": {
+            "class": {
+              "description": "The kind after the `:` (`Curve`, `Shape`, …).",
+              "type": "string"
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "extends": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "handle": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "sampler"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "handle",
+            "class",
+            "members"
+          ]
+        },
+        {
+          "description": "`renderer H : Geometry { … }` (renderers.cfx).",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "extends": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "geometry": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "handle": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "renderer"
+            },
+            "material": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "handle",
+            "members"
+          ]
+        },
+        {
+          "description": "`import \"path\" [as alias];` (functions.cfx and modules).",
+          "type": "object",
+          "properties": {
+            "alias": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "import"
+            },
+            "path": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "path"
+          ]
+        },
+        {
+          "description": "`namespace a.b { … }`.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Item"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "namespace"
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "items"
+          ]
+        },
+        {
+          "description": "`fn name(params) [-> Type] { … }`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Stmt"
+              }
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "generics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Generic"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "fn"
+            },
+            "name": {
+              "type": "string"
+            },
+            "needs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Need"
+              }
+            },
+            "params": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Param"
+              }
+            },
+            "result": {
+              "description": "The trailing expression, without a `;`: what the function returns.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "returns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "params",
+            "body"
+          ]
+        },
+        {
+          "description": "`const NAME : Type = expr;`.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "const"
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "type",
+            "value"
+          ]
+        },
+        {
+          "description": "`template layer|renderer|sampler NAME [: Type] [extends A, B] { … }`.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "extends": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "template"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "name": {
+              "type": "string"
+            },
+            "of": {
+              "description": "`layer`, `renderer` or `sampler`.",
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "of",
+            "name",
+            "members"
+          ]
+        }
+      ]
+    },
+    "KeyRow": {
+      "description": "`t = value [in tangent out tangent]`, one key.",
+      "type": "object",
+      "properties": {
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "tangent_in": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tangent_out": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "time": {
+          "$ref": "#/$defs/Value"
+        },
+        "value": {
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "value"
+      ]
+    },
+    "LayerRef": {
+      "description": "A layer as the graph names it.",
+      "oneOf": [
+        {
+          "description": "The effect itself, `root`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "root"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "`&NAME`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "layer"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name"
+          ]
+        }
+      ]
+    },
+    "LocalizedEntry": {
+      "description": "`key => \"text\"` or `key => null`.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key"
+      ]
+    },
+    "Member": {
+      "description": "A line, or a block, inside a declaration's braces.",
+      "oneOf": [
+        {
+          "description": "`Key = value;` (the key may be dotted: `Transparent.Type`).",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "entry"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "$ref": "#/$defs/Value"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "key",
+            "value"
+          ]
+        },
+        {
+          "description": "`Key;`: a flag that is set, or a renderer feature at its default.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "flag"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "key"
+          ]
+        },
+        {
+          "description": "`keys N { t = value [in … out …] … }`: a curve's key list.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "key": {
+              "description": "`keys` or `keys1`.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "keys"
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/KeyRow"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "key",
+            "rows"
+          ]
+        },
+        {
+          "description": "A child's one-liner: `sampler \"Name\" : Curve = &sd0 usage 3;`, `spatial …`, `attrib …`,\n`attribsampler …`, `payload …`, or an attribute sampler in `attributes`.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ChildField"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "child"
+            },
+            "members": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "word": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "word",
+            "fields"
+          ]
+        },
+        {
+          "description": "A node nested in a `node` block, owned by one of its fields.",
+          "type": "object",
+          "properties": {
+            "class": {
+              "type": "string"
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "handle": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "node"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "owner": {
+              "description": "The field of the enclosing node that owns this one; none at the top level.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "handle",
+            "class",
+            "members"
+          ]
+        },
+        {
+          "description": "`\"Name\" [: Type] { … }` in `attributes`.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "attribute"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "standard": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "members"
+          ]
+        },
+        {
+          "description": "`properties { … }` in a layer.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "properties"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Member"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "members"
+          ]
+        },
+        {
+          "description": "`event NAME [flags N] { payload … }` or `event NAME;` in a layer.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "flags": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "kind": {
+              "type": "string",
+              "const": "event"
+            },
+            "name": {
+              "type": "string"
+            },
+            "payload": {
+              "description": "The payload's fields; none for `event NAME;`.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/PayloadField"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name"
+          ]
+        },
+        {
+          "description": "`root [auto] …` in a layer: the payload a newborn receives.",
+          "type": "object",
+          "properties": {
+            "auto": {
+              "type": "boolean"
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "flags": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "kind": {
+              "type": "string",
+              "const": "root"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "payload": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/PayloadField"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "`fields { \"Name\" : Type; … }` in a layer: the externals its programs share.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Need"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "fields"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "fields"
+          ]
+        },
+        {
+          "description": "`init { … }`: a layer's spawn program.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Stmt"
+              }
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "init"
+            },
+            "needs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Need"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "body"
+          ]
+        },
+        {
+          "description": "`evolve [scope] { … }`: a layer's per-frame program.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Stmt"
+              }
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "evolve"
+            },
+            "needs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Need"
+              }
+            },
+            "scope": {
+              "description": "`physics` for `evolve physics { … }`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "body"
+          ]
+        },
+        {
+          "description": "`bind HANDLE { \"field\" -> Slot; … }`: a layer's renderer inputs.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/BindInput"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "bind"
+            },
+            "renderer": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "renderer",
+            "inputs"
+          ]
+        },
+        {
+          "description": "`takes { \"param\" : Type [= default]; … }` in a template.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "takes"
+            },
+            "params": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TakesParam"
+              }
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "params"
+          ]
+        },
+        {
+          "description": "`using { \"param\" = value; … }` in a declaration or template that extends one.",
+          "type": "object",
+          "properties": {
+            "bindings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/UsingBinding"
+              }
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "using"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "bindings"
+          ]
+        }
+      ]
+    },
+    "Need": {
+      "description": "`\"Name\" [: Type];`, one external a program, or a layer's `fields`, declares.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "Param": {
+      "description": "A parameter: `p: T`, `p: &T` (`by_ref`), `p: const &Renderer` (`const_ref`), with an optional\n`= default`.",
+      "type": "object",
+      "properties": {
+        "by_ref": {
+          "type": "boolean"
+        },
+        "const_ref": {
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ]
+    },
+    "PayloadField": {
+      "description": "`Name [: Type] [= flags] [kind K];`, one field of an event's payload.",
+      "type": "object",
+      "properties": {
+        "flags": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "payload_kind": {
+          "description": "The `kind K` category.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "Stmt": {
+      "description": "A statement of a program or a function body.",
+      "oneOf": [
+        {
+          "description": "`let NAME [: Type] = EXPR;`.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "let"
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "description": "`Target = EXPR;`: a store, a local's rebinding, or a lane write (`v.xy = …`).",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "element_kind": {
+              "description": "`kind K` after an element line of an `emit` block (a statement's `kind` is its tag).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "const": "assign"
+            },
+            "quoted": {
+              "type": "boolean"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "target": {
+              "description": "A dotted name (`Position`, `self.lifeRatio`, `v.xy`), or a quoted one when `quoted`.",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "value"
+          ]
+        },
+        {
+          "description": "`EXPR;`: a call made for what it does.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "expr"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`store \"NAME\" = EXPR;`, the older spelling of a store.",
+          "type": "object",
+          "properties": {
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "store"
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "description": "`E.emit(gen) { … }`: an event sent with its elements, each an [`Assign`] of the element's\nname (`Color = VectorLinear(prev, cur) kind Generic;`), among `let`s.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Stmt"
+              }
+            },
+            "call": {
+              "description": "The head, `E.emit(gen)` or `E.emit(gen, key = N)`; `\"E\".emit(gen)` for an event whose name\nis not an identifier.",
+              "$ref": "#/$defs/Call"
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "emit"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "call",
+            "body"
+          ]
+        },
+        {
+          "description": "`L.insert(at) { … }`: the particle put into a spatial layer with its payloads, each an\n[`Assign`] of the payload's name (`Position = p;`), among `let`s.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Stmt"
+              }
+            },
+            "call": {
+              "description": "The head, `L.insert(at)`.",
+              "$ref": "#/$defs/Call"
+            },
+            "comments": {
+              "$ref": "#/$defs/Comments"
+            },
+            "kind": {
+              "type": "string",
+              "const": "insert"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "call",
+            "body"
+          ]
+        }
+      ]
+    },
+    "TaggedArg": {
+      "description": "`tag: value`, one argument of a `call(…){ … }`.",
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "value"
+      ]
+    },
+    "TakesParam": {
+      "description": "`\"param\" : Type [= default];`. A default is kept as written: a template's text is merged\nbefore it is read.",
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ]
+    },
+    "UsingBinding": {
+      "description": "`\"param\" = value;`, the value as written.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ]
+    },
+    "Value": {
+      "description": "A value of a structure file, read without the schema: what a field's type makes of it is the\nschema's to say.",
+      "oneOf": [
+        {
+          "description": "`42`, `-0`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "int"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`3.14`, `1.4e-45@0x00000001`, `nan`, `-inf`.",
+          "type": "object",
+          "properties": {
+            "bits": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "float"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "`true`, `false`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "bool"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`\"text\"`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "`&handle`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "handle"
+            },
+            "name": {
+              "type": "string"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name"
+          ]
+        },
+        {
+          "description": "`&null`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "null"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "`(a, b, …)`.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "tuple"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "items"
+          ]
+        },
+        {
+          "description": "`[a, b, …]`.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "list"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "items"
+          ]
+        },
+        {
+          "description": "`loc[key => \"text\", …]`.",
+          "type": "object",
+          "properties": {
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LocalizedEntry"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "localized"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "entries"
+          ]
+        },
+        {
+          "description": "Anything else, as written: an enum word (`Cylinder`, `f32x4`), `2.5.0`, `b64\"…\"`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "word"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "text"
+          ]
+        },
+        {
+          "description": "Several values side by side, separated by spaces.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "seq"
+            },
+            "span": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "items"
+          ]
+        }
+      ]
+    }
+  }
+}

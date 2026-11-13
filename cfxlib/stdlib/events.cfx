@@ -1,0 +1,91 @@
+// stdlib/events.cfx — firing an event when a particle dies, and building the payload it carries.
+//
+// The `emplace_*` helpers are superseded by the `E.emit(gen) { Name = value; … }` block
+// (CFX_GUIDE §12.1), which names each element by its declaration; they stay for the bundles that
+// call them. `trigger_on_death` is what a block on a death event sends with.
+//
+// The chain these wrap is the one `stdlib/spawn.cfx` spells out:
+//
+//   trigger(cond, at)                      -> i32x3   the tick's spawn state (empty unless `cond`)
+//   evt.initPayload(key, gen)              -> i32     an opaque payload KEY
+//   buildPayloadElement(gen, prev, cur, f) -> i32     an opaque element HANDLE
+//   evt.appendPayload(key, index, elem)    -> i32     a NEW key — the chain is THREADED
+//   evt.kick(key)                                     fires with the LAST key
+//
+// The spawn state is what `buildPayloadElement` needs as well as `initPayload`, so it is the thing
+// to hand around: `trigger_on_death` returns it, and every `emplace_*` takes it. Each `emplace_*`
+// takes the key to append to and the element's INDEX — its position in the event's declaration
+// (CFX_GUIDE §7.3) — and returns the next key. The index is a parameter, not a counter carried in a
+// vector, because the engine requires it to be a literal (`appendPayload` registers it as a uniform)
+// and a lane read out of a vector is not folded to one.
+//
+//     let gen : i32x3 = events.trigger_on_death();
+//     let k0 : i32 = __e_OnDeath.initPayload(0, gen);
+//     let k1 : i32 = events.emplace_position(__e_OnDeath, gen, k0, 0, Position);
+//     let k2 : i32 = events.emplace_element(__e_OnDeath, gen, k1, 1, Heat);
+//     __e_OnDeath.kick(k2);
+//
+// or, with no payload at all, `spawn.emit(__e_OnDeath, events.trigger_on_death());`.
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+import "payload.cfx";
+
+namespace events {
+
+    // `self.isDead()`, PopcornFX's own test in its `SimpleOnDeath` event node, is this comparison:
+    // the engine kills a particle once `lifeRatio` reaches 1, before its next update.
+    /// @brief The spawn state of a one-shot that fires on the tick this particle dies, and on no other tick — what PopcornFX's `SimpleOnDeath` event node compiles to. Fire it bare with `spawn.emit`, or open a payload on it with `initPayload` and fill it with the `emplace_*` helpers.
+    ///
+    /// @result The spawn-state triple `trigger` returns, as `generate` does for a rate: what `initPayload` and `buildPayloadElement` take. Empty on every tick the particle is still alive.
+    fn trigger_on_death() -> i32x3 {
+        needs {
+            "self.lifeRatio" : f32;
+        }
+        trigger(self.lifeRatio >= 1.0, 1.0)
+    }
+
+    /// @brief Append one value to a payload. Build `semantic` with `payloads.PackSemantics` rather than writing the number, or the next reader has to decode it by hand.
+    ///
+    /// @param event The event the payload belongs to.
+    /// @param gen The spawn state the payload was opened with (`initPayload`'s second argument).
+    /// @param key The payload key to append to: `initPayload`'s result for the first element, the previous `emplace_*`'s for the next.
+    /// @param index The element's position in the event's declaration. Must be a literal, and load-bearing — a wrong index is silent, not an error.
+    /// @param value The value each spawned child receives.
+    /// @param semantic The packed kind and interpolation word. Must be a compile-time constant — the engine registers it as a uniform.
+    ///
+    /// @result The key to append to next. Thread it on and `kick` the last one, or every element appended is dropped.
+    fn emplace_payload<T>(event: &particleEvent, gen: i32x3, key: i32, index: i32, value: T, semantic: i32) -> i32 {
+        let element : i32 = buildPayloadElement(gen, value, value, semantic);
+        event.appendPayload(key, index, element)
+    }
+
+    /// @brief Append a spawn position, tagged so the engine's spawn transform recognises it — what PopcornFX's `EventPayloadAppend` writes for a `XFormsPositions` payload.
+    ///
+    /// @param event The event the payload belongs to.
+    /// @param gen The spawn state the payload was opened with.
+    /// @param key The payload key to append to.
+    /// @param index The element's position in the event's declaration.
+    /// @param position Where the child is born.
+    ///
+    /// @result The key to append to next.
+    fn emplace_position(event: &particleEvent, gen: i32x3, key: i32, index: i32, position: f32x3) -> i32 {
+        emplace_payload(event, gen, key, index, position,
+            payloads.PackSemantics(payloads.Lerp.None, payloads.EKind.Position))
+    }
+
+    /// @brief Append a plain value of any width, with no special meaning attached — the ordinary case.
+    ///
+    /// @param event The event the payload belongs to.
+    /// @param gen The spawn state the payload was opened with.
+    /// @param key The payload key to append to.
+    /// @param index The element's position in the event's declaration.
+    /// @param value The value each spawned child receives.
+    ///
+    /// @result The key to append to next.
+    fn emplace_element<T>(event: &particleEvent, gen: i32x3, key: i32, index: i32, value: T) -> i32 {
+        emplace_payload(event, gen, key, index, value,
+            payloads.PackSemantics(payloads.Lerp.None, payloads.EKind.Generic))
+    }
+}

@@ -1,0 +1,96 @@
+// stdlib/easing.cfx — easing curves over a normalized t in [0, 1].
+//
+// All of these take an ALREADY-normalized t (use `math.remap` from math.cfx to get one) and return
+// a value in [0, 1]. There is no control flow in CFX, so the "in/out" halves are blended with
+// `select` rather than branched.
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+import "math.cfx";
+
+namespace easing {
+
+    /// @brief Accelerate from rest: slow at the start, fastest at the end. Quadratic.
+    ///
+    /// @param t The normalized position, 0 to 1. Saturated first, so anything outside clamps.
+    ///
+    /// @result The eased value, 0 to 1.
+    fn ease_in_quad(t: f32) -> f32 { let x : f32 = saturate(t); x * x }
+
+    /// @brief Decelerate to rest: fastest at the start, slow at the end. Quadratic.
+    ///
+    /// @param t The normalized position, 0 to 1. Saturated first, so anything outside clamps.
+    ///
+    /// @result The eased value, 0 to 1.
+    fn ease_out_quad(t: f32) -> f32 { let x : f32 = 1.0 - saturate(t); 1.0 - x * x }
+
+    /// @brief Accelerate from rest, harder than the quadratic — the start is nearly flat. Cubic.
+    ///
+    /// @param t The normalized position, 0 to 1. Saturated first, so anything outside clamps.
+    ///
+    /// @result The eased value, 0 to 1.
+    fn ease_in_cubic(t: f32) -> f32 { let x : f32 = saturate(t); x * x * x }
+
+    /// @brief Decelerate to rest, harder than the quadratic — the end is nearly flat. Cubic.
+    ///
+    /// @param t The normalized position, 0 to 1. Saturated first, so anything outside clamps.
+    ///
+    /// @result The eased value, 0 to 1.
+    fn ease_out_cubic(t: f32) -> f32 { let x : f32 = 1.0 - saturate(t); 1.0 - x * x * x }
+
+    /// @brief Accelerate out of rest and decelerate back into it, meeting at half speed in the middle. Quadratic both halves.
+    ///
+    /// @param t The normalized position, 0 to 1. Saturated first, so anything outside clamps.
+    ///
+    /// @result The eased value, 0 to 1.
+    fn ease_in_out_quad(t: f32) -> f32 {
+        let x : f32 = saturate(t);
+        select(x < 0.5, 2.0 * x * x, 1.0 - 2.0 * (1.0 - x) * (1.0 - x))
+    }
+
+    /// @brief Sine ease-in-out — the smoothest of the cheap ones, with no visible corner at either end.
+    ///
+    /// @param t The normalized position, 0 to 1. Saturated first, so anything outside clamps.
+    ///
+    /// @result The eased value, 0 to 1.
+    fn ease_sine(t: f32) -> f32 { 0.5 - 0.5 * radians.cos(saturate(t) * math.PI) }
+
+    /// @brief A 0 → 1 → 0 hump: rises over [0, peak], falls over [peak, 1]. The classic fade-in/fade-out.
+    ///
+    /// @param t The normalized position, 0 to 1.
+    /// @param peak Where the hump reaches 1. Move it earlier for a quick flash with a long tail.
+    ///
+    /// @result The hump's value at `t`, 0 to 1.
+    fn pulse(t: f32, peak: f32 = 0.5) -> f32 {
+        let x : f32 = saturate(t);
+        min(math.remap(x, 0.0, peak), math.remap(x, 1.0, peak))
+    }
+
+    /// @brief Hold at 1 through `hold`, then fade to 0 by t = 1.
+    ///
+    /// @param t The normalized position, 0 to 1.
+    /// @param hold How long full strength lasts before the fade starts.
+    ///
+    /// @result 1 while held, then falling to 0.
+    fn fade_out_after(t: f32, hold: f32 = 0.6) -> f32 { 1.0 - math.remap(t, hold, 1.0) }
+
+    /// @brief Ramp in over `in_end`, hold, ramp out from `out_start` — a trapezoid instead of a peak.
+    ///
+    /// @param t The normalized position, 0 to 1.
+    /// @param in_end Where the ramp in finishes and the hold begins.
+    /// @param out_start Where the hold ends and the ramp out begins.
+    ///
+    /// @result The trapezoid's value at `t`, 0 to 1.
+    fn fade_in_out(t: f32, in_end: f32 = 0.15, out_start: f32 = 0.8) -> f32 {
+        min(math.remap(t, 0.0, in_end), math.remap(t, 1.0, out_start))
+    }
+
+    /// @brief Exponential decay to 0 — halves every `half_life`, and never quite reaches zero.
+    ///
+    /// @param t How far along the decay is, in the same units as `half_life`.
+    /// @param half_life How long the value takes to halve. Smaller decays faster.
+    ///
+    /// @result The remaining fraction, 1 at t = 0 and approaching 0.
+    fn decay(t: f32, half_life: f32 = 0.25) -> f32 { exp2(0.0 - t * rcp(half_life)) }
+}

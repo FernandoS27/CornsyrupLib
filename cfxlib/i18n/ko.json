@@ -1,0 +1,995 @@
+{
+  "stdlib/color::color.with_alpha": {
+    "brief": "색의 알파만 바꾸고 RGB는 그대로 둡니다.",
+    "param": {
+      "c": "다시 만들 색.",
+      "a": "새 알파. 기존 값을 대체합니다."
+    },
+    "result": "알파가 `a`인 같은 RGB."
+  },
+  "stdlib/color::color.fade": {
+    "brief": "색의 알파에 `k`를 곱하고 RGB는 그대로 둡니다 — 페이드아웃 관용구입니다. 대입이 아니라 곱셈이므로 겹쳐 쓸 수 있어, 출생 색으로 이미 반투명한 파티클은 불투명이 아니라 현재 상태에서 이어서 사라집니다.",
+    "param": {
+      "c": "사라지게 할 색.",
+      "k": "알파에 곱할 계수. 1이면 그대로, 0이면 보이지 않습니다."
+    },
+    "result": "알파만 조정된 같은 RGB."
+  },
+  "stdlib/color::color.mix": {
+    "brief": "두 색을 알파까지 포함해 섞습니다.",
+    "param": {
+      "a": "t = 0일 때의 색.",
+      "b": "t = 1일 때의 색.",
+      "t": "두 색 사이의 위치. saturate되므로 [0, 1] 밖의 값은 외삽되지 않고 잘립니다."
+    },
+    "result": "섞인 색."
+  },
+  "stdlib/color::color.gamma": {
+    "brief": "RGB에 대한 근사 감마 보정입니다(알파는 건드리지 않습니다).",
+    "param": {
+      "c": "보정할 색.",
+      "g": "각 RGB 채널에 적용할 지수. 2.2가 일반적인 디스플레이 감마입니다."
+    },
+    "result": "보정된 색. 알파는 원래대로입니다."
+  },
+  "stdlib/color::color.grading": {
+    "brief": "노출을 적용하고 색상·채도·명도를 이동한 뒤 RGB로 되돌리는 표준 색보정 과정입니다.",
+    "param": {
+      "rgba": "보정할 색.",
+      "hsv_offset": "HSV 형태에 더해집니다. 색상·채도·명도 이동과 마지막 레인의 알파 이동.",
+      "exp_exposure": "노출 배수. 컴파일러가 균일한 값을 이 형태로 저장하기 때문에 스칼라가 아닌 벡터입니다. 모두 1이면 색이 그대로입니다."
+    },
+    "result": "보정된 색. RGB로 되돌아온 상태입니다."
+  },
+  "stdlib/color::color.adjust_hsv": {
+    "brief": "PopcornFX의 `Color` 템플릿입니다. 색을 HSV에서 상수만큼, 그리고 생성 시 뽑은 파티클 고유의 변화량만큼 옮긴 뒤 RGB로 되돌립니다.",
+    "param": {
+      "rgba": "조정할 색.",
+      "shift": "일정한 HSV 이동. 색상·채도·명도 이동과 마지막 레인의 0.",
+      "variation": "파티클이 생성 시 뽑은 HSV 난수(`rand(-1, 1) * HSVVariation * 0.5`). 필드에 저장되어 있습니다."
+    },
+    "result": "조정된 색. RGB로 되돌린 값."
+  },
+  "stdlib/color::color.fade_on_stop": {
+    "brief": "PopcornFX `FadeOnStop`의 색 부분입니다. 각 채널에 `1 - time_since_stop`을 곱해, 정지 타이머가 진행되는 동안 파티클이 사라지게 합니다. 이번 프레임의 `life.ratio_since_stop` 이전의 타이머 값을 넘기세요.",
+    "param": {
+      "c": "페이드할 색.",
+      "time_since_stop": "`FadeOnStop` 타이머. 이펙트가 실행되는 동안은 0."
+    },
+    "result": "페이드된 색."
+  },
+  "stdlib/easing::easing.ease_in_quad": {
+    "brief": "정지 상태에서 가속합니다. 시작은 느리고 끝이 가장 빠릅니다. 이차 곡선입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치. 먼저 saturate되므로 범위를 벗어나면 잘립니다."
+    },
+    "result": "이징된 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.ease_out_quad": {
+    "brief": "감속해서 멈춥니다. 시작이 가장 빠르고 끝이 느립니다. 이차 곡선입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치. 먼저 saturate되므로 범위를 벗어나면 잘립니다."
+    },
+    "result": "이징된 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.ease_in_cubic": {
+    "brief": "정지 상태에서 가속합니다. 이차보다 강해 시작이 거의 평평합니다. 삼차 곡선입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치. 먼저 saturate되므로 범위를 벗어나면 잘립니다."
+    },
+    "result": "이징된 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.ease_out_cubic": {
+    "brief": "감속해서 멈춥니다. 이차보다 강해 끝이 거의 평평합니다. 삼차 곡선입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치. 먼저 saturate되므로 범위를 벗어나면 잘립니다."
+    },
+    "result": "이징된 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.ease_in_out_quad": {
+    "brief": "정지에서 가속했다가 다시 감속해 멈춥니다. 중간에서 절반 속도로 이어집니다. 두 구간 모두 이차 곡선입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치. 먼저 saturate되므로 범위를 벗어나면 잘립니다."
+    },
+    "result": "이징된 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.ease_sine": {
+    "brief": "사인 이즈인아웃 — 가벼운 곡선 중 가장 부드럽고 양 끝에 각이 보이지 않습니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치. 먼저 saturate되므로 범위를 벗어나면 잘립니다."
+    },
+    "result": "이징된 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.pulse": {
+    "brief": "0 → 1 → 0 형태의 봉우리입니다. [0, peak]에서 올라가고 [peak, 1]에서 내려옵니다. 전형적인 페이드인·페이드아웃입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치.",
+      "peak": "봉우리가 1에 도달하는 위치. 앞으로 당기면 짧은 섬광에 긴 여운이 남습니다."
+    },
+    "result": "`t`에서의 봉우리 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.fade_out_after": {
+    "brief": "`hold`까지는 1을 유지하다가 t = 1까지 0으로 사라집니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치.",
+      "hold": "페이드가 시작되기 전 최대 값을 유지하는 길이."
+    },
+    "result": "유지되는 동안 1이고 이후 0까지 내려갑니다."
+  },
+  "stdlib/easing::easing.fade_in_out": {
+    "brief": "`in_end`까지 올라가 유지하다가 `out_start`부터 내려옵니다. 뾰족한 봉우리가 아니라 사다리꼴입니다.",
+    "param": {
+      "t": "0에서 1 사이의 정규화된 위치.",
+      "in_end": "상승이 끝나고 유지가 시작되는 위치.",
+      "out_start": "유지가 끝나고 하강이 시작되는 위치."
+    },
+    "result": "`t`에서의 사다리꼴 값. 0에서 1 사이입니다."
+  },
+  "stdlib/easing::easing.decay": {
+    "brief": "0을 향한 지수 감쇠입니다. `half_life`마다 절반이 되며 정확히 0에는 닿지 않습니다.",
+    "param": {
+      "t": "감쇠가 얼마나 진행됐는지. 단위는 `half_life`와 같습니다.",
+      "half_life": "값이 절반이 되는 데 걸리는 길이. 작을수록 빨리 감쇠합니다."
+    },
+    "result": "남은 비율. t = 0에서 1이고 점차 0에 가까워집니다."
+  },
+  "stdlib/events::events.trigger_on_death": {
+    "brief": "이 파티클이 죽는 틱에만 발동하고 다른 틱에는 발동하지 않는 단발 트리거의 생성 상태입니다. PopcornFX의 `SimpleOnDeath` 이벤트 노드가 컴파일되는 형태 그대로입니다. `spawn.emit`으로 그대로 발생시키거나, `initPayload`로 페이로드를 열고 `emplace_*` 도우미로 채우세요.",
+    "result": "`trigger`가 반환하는 생성 상태 삼중값으로, 비율에 대해 `generate`가 반환하는 것과 같습니다. `initPayload`와 `buildPayloadElement`가 받는 값입니다. 파티클이 살아 있는 틱에는 비어 있습니다."
+  },
+  "stdlib/events::events.emplace_payload": {
+    "brief": "페이로드에 값 하나를 덧붙입니다. `semantic`은 숫자를 직접 쓰지 말고 `payloads.PackSemantics`로 만드세요. 그러지 않으면 다음 사람이 손으로 해독해야 합니다.",
+    "param": {
+      "event": "페이로드가 속한 이벤트.",
+      "gen": "페이로드를 열 때 쓴 생성 상태(`initPayload`의 두 번째 인수).",
+      "key": "덧붙일 대상 페이로드 키. 첫 요소에는 `initPayload`의 결과, 이후에는 직전 `emplace_*`의 결과입니다.",
+      "index": "이벤트 선언에서 이 요소의 위치. 리터럴이어야 하며 중요한 값으로, 잘못 써도 오류가 아니라 조용히 어긋납니다.",
+      "value": "생성되는 각 자식 파티클이 받는 값.",
+      "semantic": "종류와 보간 방식을 담은 워드. 엔진이 uniform으로 등록하므로 컴파일 타임 상수여야 합니다."
+    },
+    "result": "다음에 덧붙일 때 쓸 키. 이것을 이어서 넘기고 마지막 키로 `kick`하세요. 그러지 않으면 덧붙인 요소가 모두 버려집니다."
+  },
+  "stdlib/events::events.emplace_position": {
+    "brief": "출생 위치를 덧붙입니다. 엔진의 스폰 변환이 알아볼 수 있도록 표시됩니다. PopcornFX의 `EventPayloadAppend`가 `XFormsPositions` 페이로드에 쓰는 것과 같습니다.",
+    "param": {
+      "event": "페이로드가 속한 이벤트.",
+      "gen": "페이로드를 열 때 쓴 생성 상태.",
+      "key": "덧붙일 대상 페이로드 키.",
+      "index": "이벤트 선언에서 이 요소의 위치.",
+      "position": "자식 파티클이 태어나는 위치."
+    },
+    "result": "다음에 덧붙일 때 쓸 키."
+  },
+  "stdlib/events::events.emplace_element": {
+    "brief": "특별한 의미가 없는 임의 폭의 값을 덧붙입니다. 가장 흔한 경우입니다.",
+    "param": {
+      "event": "페이로드가 속한 이벤트.",
+      "gen": "페이로드를 열 때 쓴 생성 상태.",
+      "key": "덧붙일 대상 페이로드 키.",
+      "index": "이벤트 선언에서 이 요소의 위치.",
+      "value": "생성되는 각 자식 파티클이 받는 값."
+    },
+    "result": "다음에 덧붙일 때 쓸 키."
+  },
+  "stdlib/life::life.set_lifetime": {
+    "brief": "이 파티클의 수명을 초 단위로 설정합니다. PopcornFX의 `SetLife` 노드와 같은 일을 합니다.",
+    "param": {
+      "seconds": "파티클이 사는 시간. 0은 Life가 0인 `SetLife`처럼 첫 갱신에서 파티클을 죽입니다. 무언가에 죽을 때까지 살게 하려면 `inf`를 넘기세요."
+    }
+  },
+  "stdlib/life::life.kill_when": {
+    "brief": "`cond`가 참이면 죽고, 그렇지 않으면 현재 수명을 유지합니다.",
+    "param": {
+      "cond": "참이면 이번 틱에 죽습니다. 레인 단위로 평가되므로 파티클마다 각자 판정됩니다."
+    }
+  },
+  "stdlib/life::life.age_ratio": {
+    "brief": "이 파티클의 정규화된 나이.",
+    "result": "태어날 때 0, 죽을 때 1 — 모든 페이드, 크기 변화, 색 커브를 구동하는 값입니다."
+  },
+  "stdlib/life::life.select_texture_id_on_age": {
+    "brief": "파티클의 수명 동안 렌더러의 아틀라스를 첫 프레임부터 마지막 프레임까지 훑습니다.",
+    "param": {
+      "local_rend": "`Atlas.SubDiv`로 격자를 주는 렌더러. 핸들이므로 프레임 수는 호출부가 지정한 대상에서 읽습니다."
+    },
+    "result": "이 파티클의 나이에 해당하는 아틀라스 프레임 번호(1부터). 레이어의 `TextureID` 필드에 대입하세요."
+  },
+  "stdlib/life::life.select_texture_id_on_inv_age": {
+    "brief": "파티클의 수명 동안 렌더러의 아틀라스를 마지막 프레임부터 첫 프레임까지 거꾸로 훑습니다.",
+    "param": {
+      "local_rend": "`Atlas.SubDiv`로 격자를 주는 렌더러. 핸들이므로 프레임 수는 호출부가 지정한 대상에서 읽습니다."
+    },
+    "result": "이 파티클의 남은 수명에 해당하는 아틀라스 프레임 번호(1부터). 레이어의 `TextureID` 필드에 대입하세요."
+  },
+  "stdlib/life::life.ratio_since_stop": {
+    "brief": "PopcornFX의 `InfiniteLife`와 `FadeOnStop` 템플릿이 유지하는 정지 타이머의 한 프레임입니다. 이펙트가 실행되는 동안은 0이고, 정지하면 초당 `rate`씩 1까지 올라갑니다. 1에 도달하면 파티클을 제거하고(`self.kill(t == 1.0)`), `color.fade_on_stop`으로 색을 `1 - t`만큼 페이드하세요.",
+    "param": {
+      "timer": "템플릿이 추가하는 타이머 필드(`LifeRatioSinceStop` / `TimeSinceStop`). 생성 시 0, 1에서 포화됩니다.",
+      "rate": "정지 후 진행 속도(초당). `InfiniteLife`는 `1 / DeathDelay`, `FadeOnStop`은 `FadeSpeed`. `inf`면 정지 후 첫 프레임에 제거됩니다."
+    },
+    "result": "타이머의 새 값. 필드에 다시 저장하세요."
+  },
+  "stdlib/math::math.DEG2RAD": {
+    "brief": "도를 라디안으로 바꾸는 계수입니다. 엔진의 삼각함수는 모두 라디안이므로 사람이 쓴 각도는 이것을 거쳐야 합니다."
+  },
+  "stdlib/math::math.RAD2DEG": {
+    "brief": "라디안을 도로 바꾸는 계수 — 엔진 각도를 사람이 읽을 수 있는 값으로 되돌리는 길입니다."
+  },
+  "stdlib/math::math.PI": {
+    "brief": "라디안으로 반 바퀴 — 원둘레와 지름의 비율입니다."
+  },
+  "stdlib/math::math.TAU": {
+    "brief": "라디안으로 한 바퀴 전체. `rand(0.0, TAU)`는 원 주위의 임의 각도를 얻는 관용구입니다."
+  },
+  "stdlib/math::math.deg_to_rad": {
+    "brief": "각도를 도에서 라디안으로 바꿉니다.",
+    "param": {
+      "d": "도 단위의 각도."
+    },
+    "result": "라디안으로 나타난 같은 각도."
+  },
+  "stdlib/math::math.rad_to_deg": {
+    "brief": "각도를 라디안에서 도로 바꿉니다.",
+    "param": {
+      "r": "라디안 단위의 각도."
+    },
+    "result": "도로 나타난 같은 각도."
+  },
+  "stdlib/math::math.remap": {
+    "brief": "`x`를 [lo, hi] 범위에서 [0, 1]로 대응시킵니다. 기본적으로 잘립니다.",
+    "param": {
+      "x": "대응시킬 값.",
+      "lo": "0으로 대응되는 값.",
+      "hi": "1로 대응되는 값.",
+      "clamped": "결과를 [0, 1] 안에 가둘 지 여부. 거줴6이면 양 끝 밖까지 나갑니다."
+    },
+    "result": "`lo`와 `hi` 사이에서 `x`가 있는 위치."
+  },
+  "stdlib/math::math.inv_lerp": {
+    "brief": "자르지 않는 역 보간입니다. `lo`와 `hi` 사이에서 `x`가 어디인지를 돌려주며 양 끝 밖으로도 나갑니다.",
+    "param": {
+      "x": "대응시킬 값.",
+      "lo": "0으로 대응되는 값.",
+      "hi": "1로 대응되는 값."
+    },
+    "result": "잘리지 않은 위치. 0보다 작거나 1보다 클 수 있습니다."
+  },
+  "stdlib/math::math.remap_range": {
+    "brief": "`x`를 [in_lo, in_hi]에서 [out_lo, out_hi]로 대응시킵니다. 두 범위 사이의 일반적인 재대응입니다.",
+    "param": {
+      "x": "대응시킬 값.",
+      "in_lo": "`out_lo`에 대응하는 입력값.",
+      "in_hi": "`out_hi`에 대응하는 입력값.",
+      "out_lo": "아래쪽 끝이 무엇이 되는지.",
+      "out_hi": "위쪽 끝이 무엇이 되는지.",
+      "clamped": "결과를 출력 범위 안에 가둘 지 여부."
+    },
+    "result": "재대응된 값."
+  },
+  "stdlib/math::math.clamp01": {
+    "brief": "값을 [0, 1] 안에 가둘다.",
+    "param": {
+      "x": "대응시킬 값."
+    },
+    "result": "잘린 값."
+  },
+  "stdlib/math::math.smoothstep": {
+    "brief": "[e0, e1] 구간의 에르미트 스무스스텝입니다. 양 끝에서 기울기가 0이므로 시작과 끝에 각이 보이지 않습니다.",
+    "param": {
+      "e0": "경사가 시작하는 지점.",
+      "e1": "경사가 끝나는 지점.",
+      "x": "대응시킬 값."
+    },
+    "result": "부드럽게 만든 값. 0에서 1 사이입니다."
+  },
+  "stdlib/math::math.blend": {
+    "brief": "부동소수점 스칼라나 벡터 모두에 쓰는 선형 보간입니다. `t`는 스칼라로 브로드캐스트되며 잘리지 않습니다. 범위를 벗어날 수 있다면 먼저 `clamp01`을 거치세요.",
+    "param": {
+      "a": "t = 0일 때의 값.",
+      "b": "t = 1일 때의 값.",
+      "t": "둘 사이의 어느 위치에 둘지."
+    },
+    "result": "섞인 값."
+  },
+  "stdlib/math::math.approach": {
+    "brief": "포화된 `rate`만큼 `cur`를 `target` 쪽으로 이동시킵니다. 프레임마다 쓰는 전형적인 이징입니다. 구조상 프레임레이트에 의존하므로, 그러기 싫다면 `rate`에 `scene.dt`를 곱하세요.",
+    "param": {
+      "cur": "값이 지금 어디에 있는지.",
+      "target": "어디로 향하는지.",
+      "rate": "이번 호출에서 남은 차이를 얼마나 즐일지. 포화되므로 1이면 한 번에 도달합니다."
+    },
+    "result": "한 단계 진행한 뒤의 값."
+  },
+  "stdlib/math::math.clamp_to": {
+    "brief": "임의의 부동소수점 스칼라나 벡터에 대해 성분별로 [lo, hi]로 자릅니다.",
+    "param": {
+      "v": "자를 값.",
+      "lo": "성분별 하한.",
+      "hi": "성분별 상한."
+    },
+    "result": "잘린 값."
+  },
+  "stdlib/math::math.safe_rcp": {
+    "brief": "`1/x`을 돌려주고 `x`가 0이면 `fallback`을 돌려줍니다. 엔진의 `rcp(0)`은 ±inf이며 NaN으로 번집니다. 나눗셈이 아니라 결과를 보호하며, 두 가지 모두 항상 계산됩니다.",
+    "param": {
+      "x": "역수를 구할 값.",
+      "fallback": "`x`가 정확히 0일 때 돌려줄 값."
+    },
+    "result": "역수 또는 대체값."
+  },
+  "stdlib/math::math.safe_div": {
+    "brief": "`a/b`를 돌려주고 `b`가 0이면 `fallback`을 돌려줍니다. 나눗셈이 아니라 결과를 보호하며, 나눗셈은 그대로 수행되고 그 ±inf는 버려집니다.",
+    "param": {
+      "a": "분자.",
+      "b": "분모.",
+      "fallback": "`b`가 정확히 0일 때 돌려줄 값."
+    },
+    "result": "몫 또는 대체값."
+  },
+  "stdlib/math::math.sign_or": {
+    "brief": "`sign(x)`와 같지만 정확히 0일 때 엔진의 답 대신 `zero`를 돌려줍니다. \"어느 쪽도 아니다\"가 특정한 의미를 가져야 할 때 씁니다.",
+    "param": {
+      "x": "부호를 알고 싶은 값.",
+      "zero": "정확히 0일 때 돌려줄 값."
+    },
+    "result": "-1, `zero`, 또는 +1."
+  },
+  "stdlib/math::degrees.sin": {
+    "brief": "도로 주어진 각도의 사인.",
+    "param": {
+      "x": "도 단위의 각도."
+    },
+    "result": "사인 값. -1에서 1 사이입니다."
+  },
+  "stdlib/math::degrees.cos": {
+    "brief": "도로 주어진 각도의 코사인.",
+    "param": {
+      "x": "도 단위의 각도."
+    },
+    "result": "코사인 값. -1에서 1 사이입니다."
+  },
+  "stdlib/math::degrees.tan": {
+    "brief": "도로 주어진 각도의 탄젠트.",
+    "param": {
+      "x": "도 단위의 각도."
+    },
+    "result": "탄젠트 값. 90도 근처에서 발산합니다."
+  },
+  "stdlib/math::degrees.asin": {
+    "brief": "역사인을 도 단위로 돌려줍니다.",
+    "param": {
+      "x": "역함수를 구할 비율."
+    },
+    "result": "도 단위의 각도."
+  },
+  "stdlib/math::degrees.acos": {
+    "brief": "역코사인을 도 단위로 돌려줍니다.",
+    "param": {
+      "x": "역함수를 구할 비율."
+    },
+    "result": "도 단위의 각도."
+  },
+  "stdlib/math::degrees.atan": {
+    "brief": "역탄젠트를 도 단위로 돌려줍니다. 두 변을 모두 알고 있다면 사분면을 살리기 위해 `atan2`를 쓰세요.",
+    "param": {
+      "x": "역함수를 구할 비율."
+    },
+    "result": "도 단위의 각도."
+  },
+  "stdlib/math::degrees.atan2": {
+    "brief": "벡터 (x, y)의 각도를 원 전체에 걸쳐 도 단위로 돌려줍니다. `atan`과 달리 두 인자의 부호가 보존되므로 사분면이 살아남습니다.",
+    "param": {
+      "y": "수직 변.",
+      "x": "수평 변."
+    },
+    "result": "도 단위의 각도."
+  },
+  "stdlib/payload::payloads.Lerp.None": {
+    "brief": "소스 프레임 하나. 자식은 값을 그대로 받고 보간하지 않습니다."
+  },
+  "stdlib/payload::payloads.Lerp.VectorLinear": {
+    "brief": "두 프레임을 성분별로 섞습니다. 자식의 값은 두 출생 프레임 사이에 놓입니다."
+  },
+  "stdlib/payload::payloads.Lerp.VectorCubic": {
+    "brief": "소스가 넷 — 두 프레임과 두 도함수입니다. `buildPayloadElementD` 형식의 도함수 스트림을 유지하는 유일한 모드이며, 다른 모드는 모두 버립니다."
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionNlerp": {
+    "brief": "두 프레임을 정규화 쿼터니언으로 섞습니다. 값싼 회전 보간으로, 최단 경로를 지나지만 속도는 일정하지 않습니다."
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionSlerp": {
+    "brief": "두 프레임을 대원을 따라 섞습니다. 각속도가 일정하지만 정규화 방식보다 비쌉니다."
+  },
+  "stdlib/payload::payloads.EKind.Generic": {
+    "brief": "스폰 기계에 특별한 의미가 없는 일반 페이로드 요소입니다. 변환도 자식 인덱스도 아닌 것은 모두 이것이 맞습니다."
+  },
+  "stdlib/payload::payloads.EKind.Position": {
+    "brief": "출생 위치입니다. 종류는 페이로드 캐시 헤더에 기록되고 스폰 변환이 거기서 읽습니다."
+  },
+  "stdlib/payload::payloads.EKind.Orientation": {
+    "brief": "출생 시의 방향입니다. `Position`과 같은 방식으로 스폰 변환을 위해 헤더에 기록됩니다."
+  },
+  "stdlib/payload::payloads.EKind.EmittedCount": {
+    "brief": "폭발 안에서 각 자식의 일련 번호입니다. 스칼라 int 요소일 때만 실제로 동작하고, 다른 폭에서는 엔진이 종류만 저장할 뿐 아무것도 하지 않습니다."
+  },
+  "stdlib/payload::payloads.PackSemantics": {
+    "brief": "페이로드 요소의 보간 방식과 종류를 `buildPayloadElement`의 마지막 인자가 되는 워드로 묶습니다. 인자 순서에 주의하세요. `lerp`가 먼저이고 `kind`가 나중입니다. 엔진 자체의 `PackSemantics`는 그 반대입니다.",
+    "param": {
+      "lerp": "엔진이 읽는 소스 프레임 수. `Lerp`에서 고릅니다.",
+      "kind": "그 요소가 스폰 기계에 어떤 의미인지. `EKind`에서 고릅니다. 기본값은 `Generic`이며, 출생 변환도 방출 인덱스도 아닌 모든 요소에 맞습니다."
+    },
+    "result": "묶인 워드. 빌드 시점에 접히므로 값에 이름을 붙여도 비용이 전혀 없습니다."
+  },
+  "stdlib/payload::payloads.ACCUM_SEED": {
+    "brief": "비율 기반 이미터의 `generate` 누산기가 시작하는 값입니다. 이월값 0.99999(float 비트 `0x3F7FFF58`, 1보다 아주 조금 작음)이므로, 무엇이든 더하는 첫 프레임에서 첫 파티클이 방출됩니다."
+  },
+  "stdlib/payload::payloads.seed": {
+    "brief": "속도 기반 이미터의 `generate` 누산기 시작 값으로, 입자 `carry`개 분을 첫 프레임으로 넘긴다. 레인 0에는 float의 비트, 레인 1은 0이다. `seed(0.99999)`는 `ACCUM_SEED`이다.",
+    "param": {
+      "carry": "첫 프레임 전에 누산기가 가진 입자의 몫. 카운트가 1에 이르는 프레임에 첫 입자가 나온다."
+    },
+    "result": "누산기의 시작 값으로, 빌드 시 접힌다."
+  },
+  "stdlib/physics::physics.integrate/2": {
+    "brief": "`velocity`로 `position`을 한 프레임 진행시킵니다(명시적 오일러). 속도를 갱신하기 전에 호출하면 대칭적이고 타임스텝에 안정적인 형태가 되고, 뒤에 호출하면 던진 파티클이 덜 날아갑니다.",
+    "param": {
+      "position": "파티클의 위치. 제자리에서 갱신됩니다.",
+      "velocity": "진행에 쓸 속도(초당). 미리 `scene.dt`를 곱하지 마세요. 이 함수가 직접 프레임 시간을 곱합니다."
+    }
+  },
+  "stdlib/physics::physics.bounce_floor": {
+    "brief": "높이 `height`의 수평면에서 튕기며 수직 속도의 `restitution`만큼을 남깁니다. 면을 통과시켜 반사하는 대신 면에 붙이므로 느린 프레임에서도 뚫고 지나가지 않습니다. `z`만 반사되고 수평 운동은 그대로입니다.",
+    "param": {
+      "position": "파티클의 위치. 면보다 아래에 있으면 면 위로 붙습니다.",
+      "velocity": "파티클의 속도. 수직 성분이 반사되고 크기가 조정됩니다.",
+      "height": "바닥이 z 축의 어디에 있는지.",
+      "restitution": "충돌 시 남기는 수직 속도의 비율. 1이면 영원히 튀고 0이면 즉시 멈춥니다."
+    }
+  },
+  "stdlib/physics::physics.integrate/6": {
+    "brief": "일정한 가속도와 바람장을 향한 선형 항력을 함께 받으며 한 프레임 움직입니다. 단계적으로 적분하지 않고 닫힌 형태로 풀기 때문에 어떤 프레임레이트에서도 정확합니다. 항력이 없으면 보통의 속도 베를레로 돌아가므로, 단순한 경우의 엄밀한 일반화입니다.",
+    "param": {
+      "position": "파티클의 위치. 제자리에서 갱신됩니다.",
+      "velocity": "파티클의 속도. 제자리에서 갱신됩니다.",
+      "acceleration": "해당 프레임의 일정 가속도(단위/초²). 중력은 `#f32x3(0, 0, -g)` 형태로 여기에 넣습니다. `mass`로 나누지 않습니다.",
+      "wind": "파티클이 끌려가는 목표 속도. `drag`이 0이면 아무 역할도 하지 않습니다.",
+      "mass": "`drag`을 나누는 데만 쓰입니다. 무거운 파티클일수록 항력의 영향을 덜 받습니다. 0보다 커야 합니다.",
+      "drag": "항력 계수. `drag/mass`가 1/초 단위의 감쇠율입니다. 0은 진공입니다."
+    }
+  },
+  "stdlib/physics::physics.integrate_in_field": {
+    "brief": "PopcornFX `Physics` 템플릿의 한 프레임으로, 벡터 필드(난류) 입력을 연결한 형태입니다. 일정한 가속도와 함께 파티클마다의 필드 속도를 향한 선형 항력을 닫힌 형태로 풉니다.",
+    "param": {
+      "position": "파티클의 위치. 제자리에서 갱신됩니다.",
+      "velocity": "파티클의 속도. 제자리에서 갱신됩니다.",
+      "field": "파티클이 끌려가는 필드 속도. 파티클 위치에서 샘플링한 값.",
+      "acceleration": "프레임 동안의 일정한 가속도(단위/s²).",
+      "mass": "`drag`만 나눕니다. 0보다 커야 합니다.",
+      "drag": "항력 계수. `drag/mass`가 1/s 단위의 감쇠율입니다."
+    }
+  },
+  "stdlib/physics::physics.integrate/3": {
+    "brief": "탄도 운동입니다. 일정한 아래 방향 중력만 있고 다른 것은 없습니다. 전체 `integrate`의 압도적으로 흔한 경우로, 호출부에서는 가속도 벡터보다 스칼라 중력이 읽기 좋기에 따로 썼습니다. 추가 비용은 없습니다. 더하는 인자가 모두 상수라 같은 코드로 특수화됩니다.",
+    "param": {
+      "position": "파티클의 위치. 제자리에서 갱신됩니다.",
+      "velocity": "파티클의 속도. 제자리에서 갱신됩니다.",
+      "gravity": "아래로 당기는 세기. WC3는 Z가 위이므로 -z 방향입니다. 클수록 무겁게 느껴집니다."
+    }
+  },
+  "stdlib/physics::physics.projection": {
+    "brief": "파티클을 `shape`의 표면에 붙입니다. `position`을 표면으로 끌어당기고 `velocity` 중 표면을 뚫고 들어가는 성분을 제거합니다. 파티클은 표면을 따라 계속 미끄러지며 파고들지도 튀어 나가지도 않습니다. 표면은 파티클의 현재 위치에서 조회되므로 `integrate` 뒤에 호출하면 오차는 한 프레임의 움직임만큼입니다.",
+    "param": {
+      "position": "파티클의 위치. 제자리에서 갱신됩니다.",
+      "velocity": "파티클의 속도. 제자리에서 갱신됩니다.",
+      "shape": "달라붙을 표면. 자신의 로컬 공간에서 조회되므로 두 입력 모두 그쪽으로 변환되고 두 결과 모두 다시 밖으로 변환됩니다."
+    }
+  },
+  "stdlib/physics::physics.bounce_off_scene": {
+    "brief": "한 프레임의 움직임을 씬에서 튕겨 냅니다. `previous`에서 `position`으로 광선을 쏘고, 맞은 곳에서 `velocity`를 표면에 대해 반사한 뒤 프레임의 나머지를 접촉점에서부터 이동합니다. 결과는 `new_position`과 `new_velocity`에 쓰며, 이 둘은 `position`과 `velocity`가 온 필드여도 됩니다. 보통 `physics.collision`으로 호출합니다.",
+    "param": {
+      "new_position": "파티클이 프레임을 마치는 위치. 빗나가면 `position`.",
+      "new_velocity": "프레임 뒤 파티클의 속도. 빗나가면 `velocity`.",
+      "position": "이번 프레임에 적분이 파티클을 놓은 위치.",
+      "velocity": "적분 뒤 파티클의 속도.",
+      "previous": "프레임 시작 때 파티클이 있던 위치이자 광선의 시작점.",
+      "restitution": "충돌할 때 남는, 표면을 향한 속도의 비율. 같은 비율만큼 표면을 따라 잃습니다. 1이면 영원히 튀고, 0이면 그 자리에서 멈춥니다.",
+      "enabled": "이번 프레임에 충돌할지 여부. `false`면 광선을 쏘지 않아 파티클이 통과합니다.",
+      "filter": "게임의 씬 조회에 넘기는 충돌 필터. 게임이 베이크하는 충돌은 모두 0을 넘깁니다."
+    },
+    "result": "이번 프레임에 파티클이 씬에 맞았는지 여부."
+  },
+  "stdlib/physics::physics.collision/6": {
+    "brief": "씬과 충돌합니다. PopcornFX의 `Collision` 템플릿이 `CollideWith` Scene일 때 하는 일입니다. 프레임의 `previous`에서 `position`으로의 움직임이 씬 지오메트리를 가로지르는 곳에서 파티클은 접촉점에서 튕겨 나갑니다. 프레임을 적분한 뒤, 그 전 위치를 넘겨 호출하세요.",
+    "param": {
+      "position": "이번 프레임에 적분이 파티클을 놓은 위치. 제자리에서 갱신됩니다.",
+      "velocity": "적분 뒤 파티클의 속도. 제자리에서 갱신됩니다.",
+      "previous": "프레임 시작 때 파티클이 있던 위치. 적분하기 전의 위치입니다.",
+      "restitution": "충돌할 때 남는, 표면을 향한 속도의 비율. 같은 비율만큼 표면을 따라 잃습니다. 1이면 영원히 튀고, 0이면 그 자리에서 멈춥니다.",
+      "enabled": "이번 프레임에 충돌할지 여부. `false`면 파티클이 통과합니다.",
+      "filter": "게임의 씬 조회에 넘기는 충돌 필터. 게임이 베이크하는 충돌은 모두 0을 넘깁니다."
+    }
+  },
+  "stdlib/physics::physics.collision/9": {
+    "brief": "다른 `collision`처럼 씬과 충돌하고 튕긴 횟수를 셉니다. PopcornFX의 `Collision` 템플릿처럼 파티클은 `bounces_before_death`번 뒤의 튕김에서, `die_on_contact`면 첫 접촉에서 죽습니다. `bounces`는 파티클이 지니는, 0에서 시작하는 필드입니다.",
+    "param": {
+      "position": "이번 프레임에 적분이 파티클을 놓은 위치. 제자리에서 갱신됩니다.",
+      "velocity": "적분 뒤 파티클의 속도. 제자리에서 갱신됩니다.",
+      "bounces": "파티클이 씬에 맞은 횟수. 제자리에서 갱신됩니다. 0에서 시작하는 필드에 두세요.",
+      "previous": "프레임 시작 때 파티클이 있던 위치. 적분하기 전의 위치입니다.",
+      "restitution": "충돌할 때 남는, 표면을 향한 속도의 비율. 같은 비율만큼 표면을 따라 잃습니다. 1이면 영원히 튀고, 0이면 그 자리에서 멈춥니다.",
+      "bounces_before_death": "파티클이 견디는 튕김 횟수. 0이면 절대 죽지 않습니다.",
+      "die_on_contact": "`bounces_before_death`와 상관없이 첫 접촉에서 파티클을 죽입니다.",
+      "enabled": "이번 프레임에 충돌할지 여부. `false`면 파티클이 통과합니다.",
+      "filter": "게임의 씬 조회에 넘기는 충돌 필터. 게임이 베이크하는 충돌은 모두 0을 넘깁니다."
+    }
+  },
+  "stdlib/physics::physics.spin": {
+    "brief": "빌보드를 회전시킵니다. 각도 `rotation`을 이번 프레임 동안 초당 `speed`만큼 진행시킨 값으로, PopcornFX의 `Legacy_Rotation` 템플릿이 기본값으로 컴파일되는 형태입니다. 다시 저장하세요: `Rotation = physics.spin(Rotation, speed);`.",
+    "param": {
+      "rotation": "파티클의 회전각.",
+      "speed": "회전 속도(초당). 미리 `scene.dt`를 곱하지 마세요."
+    },
+    "result": "이번 프레임 후의 각도."
+  },
+  "stdlib/random::random.rand_signed": {
+    "brief": "[-amount, +amount] 범위의 난수입니다. 0을 중심으로 한 대칭 흔들림입니다.",
+    "param": {
+      "amount": "범위의 반폭. 0의 양쪽으로 이만큼씩 퍼집니다."
+    },
+    "result": "`-amount`와 `+amount` 사이의 값."
+  },
+  "stdlib/random::random.rand_around": {
+    "brief": "`center`를 중심으로 양쪽에 `spread`만큼 퍼지는 난수입니다.",
+    "param": {
+      "center": "범위의 중심.",
+      "spread": "`center`에서 양쪽으로 얼마나 벗어날 수 있는지."
+    },
+    "result": "`center - spread`와 `center + spread` 사이의 값."
+  },
+  "stdlib/random::random.rand_box": {
+    "brief": "원점을 중심으로 한 축 정렬 박스 안의 임의의 점입니다.",
+    "param": {
+      "half": "각 축 방향으로의 박스 반크기."
+    },
+    "result": "박스 내부의 한 점."
+  },
+  "stdlib/random::random.rand_dir_xy": {
+    "brief": "수평면(WC3는 Z가 위이므로 x와 y) 안의 임의 방향입니다. 수직 성분을 선택적으로 더할 수 있습니다.",
+    "param": {
+      "z": "정규화 전에 평면에서 +z 쪽으로 얼마나 기울일지. 0이면 수평을 유지합니다."
+    },
+    "result": "단위 방향 벡터."
+  },
+  "stdlib/random::random.rand_dir": {
+    "brief": "구면에서 균일한 임의의 단위 방향입니다. PopcornFX의 `vrand()`입니다.",
+    "result": "단위 방향 벡터."
+  },
+  "stdlib/random::random.jitter": {
+    "brief": "각 축에서 최대 `amount`만큼의 임의 오프셋으로 위치를 흩뜨립니다.",
+    "param": {
+      "pos": "흩뜨릴 위치.",
+      "amount": "한 축에서 허용되는 최대 이동량."
+    },
+    "result": "흔들림이 더해진 위치."
+  },
+  "stdlib/space::coord_space.local_to_world_position_xtrans_only": {
+    "brief": "점을 이미터 로컬 공간에서 월드 공간으로 옮깁니다. 이동만 합니다. 원점을 회전하는 것은 항등이므로 여기서 회전 비용은 들지 않습니다.",
+    "param": {
+      "local_pos": "이미터 로컬 공간의 점."
+    },
+    "result": "같은 점을 월드 공간으로 나타낸 것."
+  },
+  "stdlib/space::coord_space.local_to_world_position": {
+    "brief": "점을 이미터 로컬 공간에서 월드 공간으로 옮기며 이동뿐 아니라 회전도 합니다. 출생 위치의 일반적인 경우입니다.",
+    "param": {
+      "local_pos": "이미터 로컬 공간의 점."
+    },
+    "result": "같은 점을 월드 공간으로 나타낸 것."
+  },
+  "stdlib/space::coord_space.local_to_world_direction": {
+    "brief": "방향을 이미터 로컬 공간에서 월드 공간으로 옮깁니다. 회전만 합니다. 방향이 이미터의 이동을 받아서는 안 됩니다.",
+    "param": {
+      "local_dir": "이미터 로컬 공간의 방향."
+    },
+    "result": "같은 방향을 월드 공간으로 나타낸 것."
+  },
+  "stdlib/space::coord_space.world_to_local_position": {
+    "brief": "점을 월드 공간에서 이미터 로컬 공간으로 되돌립니다. 셰이프 샘플러가 입력으로 원하는 방향입니다.",
+    "param": {
+      "world_pos": "월드 공간의 점."
+    },
+    "result": "같은 점을 이미터 로컬 공간으로 나타낸 것."
+  },
+  "stdlib/space::coord_space.world_to_local_direction": {
+    "brief": "방향을 월드 공간에서 이미터 로컬 공간으로 되돌립니다. 회전만 하며, 바깥으로 향하는 짝이 이동하지 않는 것과 같은 이유입니다.",
+    "param": {
+      "world_dir": "월드 공간의 방향."
+    },
+    "result": "같은 방향을 이미터 로컬 공간으로 나타낸 것."
+  },
+  "stdlib/space::coord_space.world_to_local_position_prev": {
+    "brief": "이전 프레임 월드 공간의 점을 같은 프레임의 이미터 로컬 공간으로 옮깁니다. 프레임 단위 델타를 만드는 형태입니다. 코퍼스에서 Prev 비트를 세우는 유일한 마스크이며, 양쪽에 동시에 세웁니다.",
+    "param": {
+      "world_pos": "이전 프레임 월드 공간의 점."
+    },
+    "result": "같은 점을 이전 프레임의 이미터 로컬 공간으로 나타낸 것."
+  },
+  "stdlib/space::coord_space.world_prev_to_world_position": {
+    "brief": "점을 이전 프레임의 월드 공간에서 이번 프레임의 월드 공간으로 옮깁니다. 프레임 동안의 이미터 움직임을 그 점에 적용하는 것으로, 움직이는 이미터를 파티클이 따라가는 방식입니다.",
+    "param": {
+      "world_pos": "이전 프레임 월드 공간에서의 점."
+    },
+    "result": "이번 프레임 월드 공간에서의 같은 점."
+  },
+  "stdlib/space::coord_space.local_to_world_position_scaled": {
+    "brief": "점을 이미터 로컬 공간에서 월드 공간으로 옮기며, 이동에 더해 회전과 스케일도 적용합니다. 이미터와 함께 스케일되는 레이어의 생성 위치입니다.",
+    "param": {
+      "local_pos": "이미터 로컬 공간에서의 점."
+    },
+    "result": "월드 공간에서의 같은 점."
+  },
+  "stdlib/space::coord_space.world_to_local_position_xtrans_only": {
+    "brief": "점을 월드 공간에서 이미터 로컬 공간으로 이동만으로 옮깁니다. `local_to_world_position_xtrans_only`의 역입니다.",
+    "param": {
+      "world_pos": "월드 공간에서의 점."
+    },
+    "result": "이미터 로컬 공간에서의 같은 점."
+  },
+  "stdlib/space::coord_space.rotation_about_z": {
+    "brief": "위쪽 축(Z)을 중심으로 `time * degrees_per_second`도만큼의 회전을 오리엔테이션으로 돌려줍니다. PopcornFX가 파티클의 방향을 일정한 속도로 돌리는 방식입니다.",
+    "param": {
+      "time": "회전한 시간(초).",
+      "degrees_per_second": "회전 속도."
+    },
+    "result": "회전. Z축 중심의 단위 쿼터니언."
+  },
+  "stdlib/space::coord_space.world_base_position": {
+    "brief": "이미터 원점의 월드 공간 위치 — 이 이미터가 지금 어디에 있는지입니다.",
+    "result": "이미터의 월드 위치."
+  },
+  "stdlib/spawn::spawn.emit": {
+    "brief": "생성 개수만 붙여 `evt`를 발생시킵니다. 자식별 페이로드는 없습니다. 가장 단순한 방출입니다.",
+    "param": {
+      "evt": "발생시킬 이벤트.",
+      "gen": "이번 프레임의 생성 상태. `generate`의 반환값 그대로이며 올림, 총합, 키가 들어 있습니다."
+    }
+  },
+  "stdlib/spawn::spawn.emit_1": {
+    "brief": "페이로드 요소 하나를 실어 `evt`를 발생시킵니다. 요소는 먼저 `buildPayloadElement`로 만드세요.",
+    "param": {
+      "evt": "발생시킬 이벤트.",
+      "gen": "이번 프레임의 생성 상태. `generate`의 반환값 그대로입니다.",
+      "elem": "실어 보낼 요소 핸들.",
+      "index": "해당 이벤트의 `events.cfx` 선언에서 이 요소의 위치. 중요한 값으로, 잘못 써도 오류가 아니라 조용히 어긋납니다.",
+      "channel": "방출의 캐시 키로, `initPayload`의 첫 인수입니다. 레이어가 한 프레임에 여러 번 보내지 않는 한 레이어의 이벤트 중 그 이벤트의 위치입니다."
+    }
+  },
+  "stdlib/spawn::spawn.emit_2": {
+    "brief": "페이로드 요소 두 개를 실어 `evt`를 발생시키며, 키를 두 번의 덧붙이기에 차례로 넘깁니다. 처음 키를 `kick`에 주면 둘 다 사라집니다.",
+    "param": {
+      "evt": "발생시킬 이벤트.",
+      "gen": "이번 프레임의 생성 상태. `generate`의 반환값 그대로입니다.",
+      "elem0": "첫 번째 요소 핸들.",
+      "elem1": "두 번째 요소 핸들.",
+      "index0": "이벤트 선언에서 첫 번째 요소의 위치.",
+      "index1": "이벤트 선언에서 두 번째 요소의 위치.",
+      "channel": "방출의 캐시 키로, `initPayload`의 첫 인수입니다. 레이어가 한 프레임에 여러 번 보내지 않는 한 레이어의 이벤트 중 그 이벤트의 위치입니다."
+    }
+  },
+  "stdlib/spawn::spawn.emit_3": {
+    "brief": "페이로드 요소 세 개를 실어 `evt`를 발생시키며, 키를 세 번의 덧붙이기에 차례로 넘깁니다.",
+    "param": {
+      "evt": "발생시킬 이벤트.",
+      "gen": "이번 프레임의 생성 상태. `generate`의 반환값 그대로입니다.",
+      "elem0": "첫 번째 요소 핸들.",
+      "elem1": "두 번째 요소 핸들.",
+      "elem2": "세 번째 요소 핸들.",
+      "index0": "이벤트 선언에서 첫 번째 요소의 위치.",
+      "index1": "이벤트 선언에서 두 번째 요소의 위치.",
+      "index2": "이벤트 선언에서 세 번째 요소의 위치.",
+      "channel": "방출의 캐시 키로, `initPayload`의 첫 인수입니다. 레이어가 한 프레임에 여러 번 보내지 않는 한 레이어의 이벤트 중 그 이벤트의 위치입니다."
+    }
+  },
+  "stdlib/templates::RootLayerTemplate": {
+    "brief": "루트 이미터입니다. 사실상 모든 WC3 이펙트의 0번 레이어입니다. 자체 파티클은 없고, `EventStream` 샘플러의 구워진 타임라인을 따라가며 항목마다 이벤트를 하나씩 발생시키고, 자식 레이어는 거기서 생겨납니다.",
+    "param": {
+      "_sd_eventStream": "따라갈 타임라인. 하드코딩한 핸들이 아니라 매개변수인 이유는 샘플러 핸들이 다른 번들에서는 아무 의미가 없기 때문입니다. 매개변수로 둔 덕분에 재사용이 가능해집니다."
+    }
+  },
+  "stdlib/templates::EventMultiplier": {
+    "brief": "비율 기반 이미터입니다. `_t_Duration`초 동안 초당 `_t_EmissionRate`개의 이벤트를 발생시킵니다. 구워진 타임라인이 아니라 연속적으로 방출하는 레이어를 위한 `RootLayerTemplate`의 짝입니다.",
+    "param": {
+      "_t_EmissionRate": "초당 몇 개의 이벤트를 발생시킬지.",
+      "_t_Duration": "얼마나 계속 방출할지. `inf`이면 이펙트 전체 동안 동작합니다. `rcp(inf)`가 빌드 시점에 0으로 접히므로 바이트코드는 손으로 쓴 무한 수명과 같습니다."
+    }
+  },
+  "stdlib/templates::TerminationTemplate": {
+    "brief": "이펙트보다 한 프레임 더 살아남는 레이어입니다. 마지막 이벤트가 발생할 자리를 남기기 위해 있습니다. 이펙트가 멈추면 타이머를 올리고, 타이머가 포화되면 스스로 죽습니다.",
+    "param": {
+      "_ev_Trigger": "이 레이어가 선언하고 배선은 그래프에 맡기는 이벤트. 이름 있는 매개변수로 둔 이유는, 기존 레이어에 템플릿을 적용했을 때 옆에 또 하나를 더하는 게 아니라 그 레이어 자신의 이벤트를 이름만 바꾸게 하기 위해서입니다."
+    }
+  },
+  "stdlib/templates::TexturedBillboard": {
+    "brief": "평범한 텍스처 빌보드입니다. 코퍼스에서 가장 흔한 렌더러입니다. 자식은 필요한 것을 그대로 더 넣을 수 있습니다. 병합이 더하기이므로 템플릿이 모든 변형을 미리 예상할 필요가 없습니다.",
+    "param": {
+      "_t_Texture": "사각면에 그려지는 이미지.",
+      "_t_Mode": "사각면을 카메라 쪽으로 돌리는 방식."
+    }
+  },
+  "stdlib/templates::SoftBillboard": {
+    "brief": "씬 기하에 가까워질 때 딱딱한 경계를 남기는 대신 부드럽게 사라지는 빌보드입니다.",
+    "param": {
+      "_t_Texture": "사각면에 그려지는 이미지.",
+      "_t_Softness": "기하에서 얼마나 떨어진 곳에서 페이드가 시작되는지. 클수록 부드럽습니다.",
+      "_t_Mode": "사각면을 카메라 쪽으로 돌리는 방식."
+    }
+  },
+  "stdlib/templates::AtlasBillboard": {
+    "brief": "플립북 빌보드입니다. 파티클은 렌더러의 `TextureID` 입력으로 프레임을 고르며, 엔진은 그 값을 `frameCount - 1`로 자릅니다.",
+    "param": {
+      "_t_Texture": "사각면에 그려지는 이미지.",
+      "_t_SubDiv": "`(열 수, 행 수)` 형태의 격자로 각각 1~64입니다. 프레임은 행 우선으로 놓이며 열이 가장 빨리 변하고 0번 프레임이 맨 위입니다.",
+      "_t_Mode": "사각면을 카메라 쪽으로 돌리는 방식.",
+      "_t_MotionVectors": "프레임 사이를 섞는 데 쓰는 모션 벡터 맵. 기본값은 엔진이 제공하는 디스토트 텍스처입니다."
+    }
+  },
+  "stdlib/templates::SingleShot": {
+    "brief": "`RootLayerTemplate`이 읽는 단일 항목 이벤트 타임라인입니다. t = 0에 항목이 하나만 있어 이펙트가 시작할 때 한 번만 방출합니다. 대부분의 번들에서 `sd0`입니다."
+  },
+  "stdlib/templates::SimpleCylinder": {
+    "brief": "원기둥 모양의 생성 볼륨입니다. 작업 공간 위치가 맨 앞에 오고 매개변수인 이유는, 샘플러 필드 순서가 .pkb까지 살아남고 자식의 필드는 템플릿 뒤에 붙기 때문입니다. 앞에 와야 하는 것은 반드시 템플릿이 내줘야 합니다.",
+    "param": {
+      "_t_Position": "에디터 작업 공간에서의 노드 좌표. 필드 순서가 .pkb까지 살아남기 때문에 맨 앞에 옵니다.",
+      "_t_Radius": "원기둥의 바깥반지름."
+    }
+  },
+  "stdlib/vec::vec.UP": {
+    "brief": "월드의 위쪽 축, +z입니다. WC3는 Z가 위입니다. 중력은 `-UP` 방향으로 당깁니다."
+  },
+  "stdlib/vec::vec.FORWARD": {
+    "brief": "앞쪽 축, +y입니다. 벡터가 너무 짧아 정규화할 수 없을 때 대체 방향으로 쓰입니다."
+  },
+  "stdlib/vec::vec.RIGHT": {
+    "brief": "오른쪽 축, +x입니다. `FORWARD`, `UP`과 함께 오른손 기저를 이룹니다."
+  },
+  "stdlib/vec::vec.length_sq": {
+    "brief": "길이의 제곱입니다. 거리를 비교만 한다면 제곱근을 생략하므로 `length`보다 쌉니다.",
+    "param": {
+      "v": "측정할 벡터."
+    },
+    "result": "`v`와 자기 자신의 내적."
+  },
+  "stdlib/vec::vec.safe_normalize": {
+    "brief": "`normalize(v)`와 같지만, (거의) 영벡터에 대해 NaN 대신 `fallback`을 돌려줍니다. PopcornFX의 `safe_normalize`입니다.",
+    "param": {
+      "v": "정규화할 벡터.",
+      "fallback": "`v`가 너무 짧아 방향이 없을 때 사용할 방향.",
+      "epsilon": "이 길이보다 짧으면 `v`를 영벡터로 봅니다."
+    },
+    "result": "단위 벡터 또는 `fallback`."
+  },
+  "stdlib/vec::vec.safe_normalize_template": {
+    "brief": "`normalize(v)`이지만, 길이가 2.5e-7보다 짧은 벡터에는 `fallback`을 돌려줍니다. PopcornFX Core의 \"safe normalize\" 템플릿으로, 내장 `safe_normalize`가 `<`로 비교하는 곳을 `<=`로 비교합니다.",
+    "param": {
+      "v": "정규화할 벡터.",
+      "fallback": "`v`가 너무 짧아 방향이 없을 때 쓸 방향."
+    },
+    "result": "단위 벡터 또는 `fallback`."
+  },
+  "stdlib/vec::vec.normalize": {
+    "brief": "길이 1로 스케일한 `v`입니다. PopcornFX의 `normalize`. 영벡터에서는 NaN입니다. `safe_normalize`를 참고하세요.",
+    "param": {
+      "v": "정규화할 벡터."
+    },
+    "result": "`v` 방향의 단위 벡터."
+  },
+  "stdlib/vec::vec.length": {
+    "brief": "`v`의 길이입니다. PopcornFX의 `length`.",
+    "param": {
+      "v": "길이를 잴 벡터."
+    },
+    "result": "유클리드 길이."
+  },
+  "stdlib/vec::vec.dist": {
+    "brief": "두 점 사이의 거리입니다.",
+    "param": {
+      "a": "첫 번째 점.",
+      "b": "두 번째 점."
+    },
+    "result": "두 점 사이의 거리."
+  },
+  "stdlib/vec::vec.dir_to": {
+    "brief": "`a`에서 `b`로 향하는 단위 벡터. 두 점이 같으면 `fallback`을 돌려줍니다.",
+    "param": {
+      "a": "기준이 되는 점.",
+      "b": "향하는 점.",
+      "fallback": "`a`와 `b`가 같은 점일 때 사용할 방향."
+    },
+    "result": "`a`에서 `b`로 향하는 단위 방향."
+  },
+  "stdlib/vec::vec.project": {
+    "brief": "`a`를 `b`에 사영한 것. `a` 중 `b` 방향 성분입니다.",
+    "param": {
+      "a": "사영되는 벡터.",
+      "b": "사영 대상 벡터. 단위 길이일 필요는 없습니다."
+    },
+    "result": "`b` 방향으로의 `a` 성분."
+  },
+  "stdlib/vec::vec.reflect": {
+    "brief": "단위 법선 `n`에 대해 `v`를 반사합니다. 정규화되지 않은 법선은 반사를 확대·축소해 결과가 어긋납니다.",
+    "param": {
+      "v": "입사 벡터.",
+      "n": "표면 법선. 반드시 단위 길이여야 합니다."
+    },
+    "result": "반사된 벡터."
+  },
+  "stdlib/vec::vec.with_x": {
+    "brief": "x 레인만 바꾼 f32x3를 다시 만듭니다.",
+    "param": {
+      "v": "다시 만들 벡터.",
+      "x": "x 레인의 새 값."
+    },
+    "result": "x 레인이 교체된 벡터."
+  },
+  "stdlib/vec::vec.with_y": {
+    "brief": "y 레인만 바꾼 f32x3를 다시 만듭니다.",
+    "param": {
+      "v": "다시 만들 벡터.",
+      "y": "y 레인의 새 값."
+    },
+    "result": "y 레인이 교체된 벡터."
+  },
+  "stdlib/vec::vec.with_z": {
+    "brief": "z 레인만 바꾼 f32x3를 다시 만듭니다. Z가 위인 WC3에서는 이것이 높이입니다.",
+    "param": {
+      "v": "다시 만들 벡터.",
+      "z": "z 레인의 새 값."
+    },
+    "result": "z 레인이 교체된 벡터."
+  },
+  "stdlib/vec::vec.scale_xy": {
+    "brief": "높이는 두고 수평면(WC3의 Z가 위인 세계에서는 x와 y)만 확대·축소합니다. 폭발을 들어 올리지 않고 바깥으로 퍼뜨릴 때 씁니다.",
+    "param": {
+      "v": "확대·축소할 벡터.",
+      "s": "x와 y에 적용할 계수."
+    },
+    "result": "x와 y만 조정되고 높이인 z는 그대로인 벡터."
+  },
+  "stdlib/xform::xform.Filter.None": {
+    "brief": "변환의 어느 부분도 포함하지 않습니다. 필터 비트가 없는 마스크는 무작용이 아니라 프로그래밍 오류이며, 엔진이 단언문으로 걸러냅니다."
+  },
+  "stdlib/xform::xform.Filter.Translate": {
+    "brief": "이동을 적용합니다. 같은 엔진 함수의 점 버전과 방향 버전을 가르는 유일한 비트입니다. 점은 이동하고 방향은 하지 않습니다."
+  },
+  "stdlib/xform::xform.Filter.Rotate": {
+    "brief": "회전을 적용합니다. 쿼터니언은 회전만 가능하며, 방향 오버로드는 이것이 필터 전체여야 한다고 단언합니다."
+  },
+  "stdlib/xform::xform.Filter.Scale": {
+    "brief": "스케일을 적용합니다. 코퍼스에서 이를 켜는 마스크는 `L2W_PointScaled` 하나로, 이미터와 함께 스케일되는 레이어의 생성 위치입니다."
+  },
+  "stdlib/xform::xform.Filter.Full": {
+    "brief": "필드 마스크로, 세 부분 모두입니다. 마스크에서 필터를 읽어 낼 때 쓰세요. 세 가지를 한꺼번에 요구하는 코퍼스 마스크는 `L2W_PointScaled` 하나입니다."
+  },
+  "stdlib/xform::xform.Space.World": {
+    "brief": "월드 공간 — 모든 것이 공유하는 공간입니다."
+  },
+  "stdlib/xform::xform.Space.WorldPrev": {
+    "brief": "이번 프레임이 시작될 때의 월드 공간입니다. 이것을 읽어 프레임 단위 데이터를 만듭니다."
+  },
+  "stdlib/xform::xform.Space.EmitterLocal": {
+    "brief": "이미터 자신의 공간입니다. 이미터 로컬 → 월드 방향만 파티클별 스폰 변환을 읽으며, 다른 방향은 모든 파티클에 브로드캐스트된 이미터 변환을 받습니다."
+  },
+  "stdlib/xform::xform.Space.EmitterLocalPrev": {
+    "brief": "이번 프레임이 시작될 때의 이미터 공간입니다. 이것을 `EmitterLocal`과 짝짓는 것은 실제 변환이지만 엔진은 그냥 거부합니다. 양쪽이 모두 로컬인 쌍은 전부 스트림 복사로 단락됩니다."
+  },
+  "stdlib/xform::xform.Space.MaskPrev": {
+    "brief": "공간 필드의 0번 비트로 \"이전 프레임의 변환\"을 뜻합니다. 엔진은 이것을 로컬성 비트와 따로 읽기 때문에 둘은 자유롭게 조합됩니다."
+  },
+  "stdlib/xform::xform.Space.MaskSpace": {
+    "brief": "공간 필드의 1번 비트로, 월드가 아니라 \"이미터 로컬\"을 뜻합니다."
+  },
+  "stdlib/xform::xform.Space.MaskFull": {
+    "brief": "공간 필드의 두 비트입니다. 마스크를 만들 때가 아니라 마스크에서 읽을 때 씁니다."
+  },
+  "stdlib/xform::xform.Mask": {
+    "brief": "마스크 워드를 만듭니다. 무엇을 변환할지, 어느 공간을 떠나는지, 어느 공간으로 들어가는지입니다. `enter`/`leave`는 엔진 자체의 이름을 따른 것이므로 `xform_l2w`는 `enter = EmitterLocal, leave = World`입니다.",
+    "param": {
+      "filter": "변환의 어느 부분을 적용할지. `Filter`에서 고릅니다. 필터 비트가 없는 마스크는 오류입니다.",
+      "enter": "떠나는 공간, 즉 이름과 달리 원본 공간입니다. 기본값은 `World`입니다.",
+      "leave": "들어가는 공간, 즉 목적지입니다. 기본값은 `World`이며, `w2l` 호출이 건드리지 않는 쪽입니다."
+    },
+    "result": "묶인 마스크 워드. 빌드 시점에 접히므로 각 부분에 이름을 붙여도 비용이 없습니다."
+  },
+  "stdlib/xform::xform.L2W_Point": {
+    "brief": "점을 이미터 로컬 공간에서 월드 공간으로 이동만으로 옮깁니다. 입력이 원점일 때 코퍼스가 회전 버전이 아니라 이것을 쓰는 이유는, 영벡터를 회전해도 그대로이기 때문입니다."
+  },
+  "stdlib/xform::xform.L2W_PointRot": {
+    "brief": "점을 이미터 로컬 공간 밖으로 옮기면서 회전도 합니다. 출생 위치에 쓰이는 일반적인 마스크입니다."
+  },
+  "stdlib/xform::xform.L2W_Dir": {
+    "brief": "방향을 이미터 로컬 공간 밖으로 옮깁니다. 회전만 하고 이동은 결코 하지 않습니다."
+  },
+  "stdlib/xform::xform.W2L_Dir": {
+    "brief": "방향을 월드 공간에서 이미터 로컬 공간으로 가져옵니다."
+  },
+  "stdlib/xform::xform.W2L_Point": {
+    "brief": "점을 월드 공간에서 이미터 로컬 공간으로 가져옵니다. 셀이프 샘플러가 입력으로 원하는 방향입니다."
+  },
+  "stdlib/xform::xform.W2L_PointPrev": {
+    "brief": "`W2L_Point`과 같지만 양쪽 모두 이전 프레임의 변환을 씁니다. 프레임 단위 데이터가 쓰는 형태이며, 코퍼스에서 Prev 비트를 세우는 유일한 마스크입니다."
+  },
+  "stdlib/xform::xform.W2W_PointFromPrev": {
+    "brief": "점을 이전 프레임의 월드 공간에서 이번 프레임의 월드 공간으로 옮깁니다. 프레임 동안의 이미터 움직임을 그 점에 적용하는 것으로, 움직이는 이미터를 파티클이 따라가는 방식입니다."
+  },
+  "stdlib/xform::xform.L2W_PointScaled": {
+    "brief": "점을 이미터 로컬 공간 밖으로 옮기며 회전과 스케일도 적용합니다. 이미터와 함께 스케일되는 레이어의 생성 위치입니다."
+  },
+  "stdlib/xform::xform.W2L_PointTranslate": {
+    "brief": "점을 월드 공간에서 이미터 로컬 공간으로 이동만으로 옮깁니다. `L2W_Point`의 역입니다."
+  },
+  "stdlib/popcorn::popcorn.EventMultiplier": {
+    "brief": "PopcornFX의 `EventMultiplier`입니다. 프레임 동안 `__e_Child`를 `_t_Count`번 발생시키고(초당 비율이면 `scene.dt * rate`) 이펙트가 멈추면 사라지는 루트 레이어입니다.",
+    "param": {
+      "_t_Count": "이번 프레임에 발생시킬 수. 초당 비율이면 `scene.dt * rate`.",
+      "_t_Life": "레이어의 수명(초). `inf`면 이펙트가 멈출 때까지 삽니다."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEventMultiplier": {
+    "brief": "유닛의 방출 비율 배수에 따라 비율이 달라지는 `EventMultiplier`입니다. 배수가 1일 때 초당 `__e_Child`를 `_t_Rate`번 발생시키고 이펙트가 멈추면 사라지는 루트 레이어입니다.",
+    "param": {
+      "_t_Rate": "방출 비율 배수가 1일 때 초당 발생시킬 수.",
+      "_t_Life": "레이어의 수명(초). `inf`면 이펙트가 멈출 때까지 삽니다."
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_09e45c63": {
+    "brief": "프레임 동안 `__e_Child`를 `_t_Count`번 발생시키고 이펙트가 멈추면 사라지는 루트 레이어입니다. 게임 자체 라이브러리 템플릿의 `EventMultiplier` 프로그램입니다.",
+    "param": {
+      "_t_Count": "이번 프레임에 발생시킬 수. 초당 비율이면 `scene.dt * rate`.",
+      "_t_Life": "레이어의 수명(초). `inf`면 이펙트가 멈출 때까지 삽니다."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_09e45c63": {
+    "brief": "방출 비율 배수가 1일 때 초당 `__e_Child`를 `_t_Rate`번 발생시키고 이펙트가 멈추면 사라지는 루트 레이어입니다. 유닛의 방출 비율 배수에 따라 비율이 달라지는 `Emitter_09e45c63`입니다.",
+    "param": {
+      "_t_Rate": "방출 비율 배수가 1일 때 초당 발생시킬 수.",
+      "_t_Life": "레이어의 수명(초). `inf`면 이펙트가 멈출 때까지 삽니다."
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_23a77ec7": {
+    "brief": "프레임 동안 `__e_Child`를 `_t_Count`번 발생시키고 이펙트가 멈추면 사라지는 루트 레이어입니다. 게임 자체 라이브러리 템플릿의 `EventMultiplier` 프로그램으로, 횟수는 대개 유닛의 방출 비율 배수를 따릅니다.",
+    "param": {
+      "_t_Count": "이번 프레임에 발생시킬 수. 대개 `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`.",
+      "_t_Life": "레이어의 수명(초). `inf`면 이펙트가 멈출 때까지 삽니다."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_23a77ec7": {
+    "brief": "방출 비율 배수가 1일 때 초당 `__e_Child`를 `_t_Rate`번 발생시키고 이펙트가 멈추면 사라지는 루트 레이어입니다. 대개의 횟수처럼 유닛의 방출 비율 배수를 따르는 `Emitter_23a77ec7`입니다.",
+    "param": {
+      "_t_Rate": "방출 비율 배수가 1일 때 초당 발생시킬 수.",
+      "_t_Life": "레이어의 수명(초). `inf`면 이펙트가 멈출 때까지 삽니다."
+    }
+  },
+  "stdlib/popcorn::popcorn.InfiniteLife": {
+    "brief": "기본 1초 `DeathDelay`를 가진 PopcornFX의 `InfiniteLife`를 전용 루트 레이어에 둔 것입니다. 이펙트가 멈출 때까지 살고 1초 뒤에 사라집니다."
+  },
+  "stdlib/popcorn::popcorn.StopTimer_4f9baf59": {
+    "brief": "이펙트가 멈출 때까지 살고 멈춘 직후 첫 프레임에 사라지는 루트 레이어입니다. 게임 자체 라이브러리의 정지 타이머 템플릿(지연 없는 `InfiniteLife`)에서 왔습니다."
+  },
+  "stdlib/physics::physics.velocity_between": {
+    "brief": "이번 프레임에 입자를 `previous`에서 `current`로 옮긴 속도로, 둘의 차를 프레임 길이로 나눈 값이며, 길이가 없는 프레임에서는 나눌 움직임이 없으므로 0이다.",
+    "param": {
+      "previous": "프레임이 시작될 때 입자가 있던 위치.",
+      "current": "지금 있는 위치."
+    },
+    "result": "속도(초당)."
+  },
+  "stdlib/life::life.intro_loop_time": {
+    "brief": "`birth`에 태어난 입자에 대해 `scene.time`초 시점에 샘플할 커브 위치: 처음 `intro`초 동안 커브의 앞부분 `intro_share`를 지나고, 그 뒤로는 나머지를 `loop_seconds`마다 반복한다.",
+    "param": {
+      "birth": "입자가 태어난 시각(`init`에서 저장한 `scene.time`).",
+      "intro": "커브의 첫 부분을 한 번 재생하는 초.",
+      "intro_share": "그 첫 부분이 커브에서 차지하는 비율(0부터 1).",
+      "loop_seconds": "커브의 나머지를 한 번 도는 데 걸리는 시간."
+    },
+    "result": "커브의 매개변수(0부터 1)."
+  }
+}

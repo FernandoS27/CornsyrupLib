@@ -1,0 +1,464 @@
+// stdlib/physics.cfx — per-frame motion integration.
+//
+// ─── How to use ───────────────────────────────────────────────────────────────────────────
+//
+//     physics.integrate(Sim_Pos, Sim_Vel, 9.81);            // ballistic: gravity + integrate
+//     physics.integrate(Sim_Pos, Sim_Vel, gravity = 20.0);  // heavier-feeling arc
+//     physics.integrate(Sim_Pos, Sim_Vel, wind = #f32x3(3, 0, 0), drag = 2.0);
+//
+// State is taken by REFERENCE (`&f32x3`), so these write back into the caller's own fields. The
+// caller only needs to declare those fields in its own `needs`; `scene.dt` is pulled in by these
+// functions and merged automatically.
+//
+// Reading a reference always yields the latest value written to it, never a re-read of the field —
+// which matters, because the assembler loads each external ONCE per program, so a literal re-read
+// after a store would return the pre-store value. See CFX_GUIDE §13.4.
+//
+// ─── Conventions ──────────────────────────────────────────────────────────────────────────
+//
+//   * WC3 is **Z-up**, so gravity acts on `z` and "down" is `-z`.
+//   * All rates are per SECOND; every function multiplies by `scene.dt` itself. Never pre-scale.
+//   * `acceleration` is an acceleration, not a force — it is NOT divided by `mass`. `mass` only
+//     softens drag (see the full `integrate` below).
+//   * There is no branching in CFX: `select(cond, whenTrue, whenFalse)` evaluates BOTH arms and
+//     picks one. Nothing here is skipped at runtime, it is only discarded — unless the condition
+//     folds to a constant at build time, when only the chosen arm is compiled at all (see the
+//     ballistic `integrate`'s Cost note).
+//     (Note the CONDITION IS FIRST. PopcornFX's own scripting spells the same operation
+//     `select(whenFalse, whenTrue, cond)` — condition LAST — so code ported from a `.pkfx`
+//     must have its `select` arguments reordered or it silently computes the wrong branch.)
+//
+// Everything here is plain CFX and is inlined at build time: no runtime cost, no engine surface.
+
+import "math.cfx";
+import "space.cfx";
+import "vec.cfx";
+
+namespace physics {
+
+    // ─── Primitives ───────────────────────────────────────────────────────────────────────
+    // One effect each, for when you want to compose the step yourself. the full `integrate` below
+    // does all of this at once and more accurately; reach for these only when you want just
+    // one piece, or want to control the order.
+
+    /// Advance `position` by `velocity` over one frame (explicit Euler).
+    ///
+    /// Call this BEFORE updating velocity for the frame and you get the symmetric,
+    /// timestep-stable form; call it after and a thrown particle undershoots.
+    /// @brief Advance `position` by `velocity` over one frame (explicit Euler). Call this BEFORE updating velocity and you get the symmetric, timestep-stable form; call it after and a thrown particle undershoots.
+    ///
+    /// @param position The particle's position, updated in place.
+    /// @param velocity The velocity to advance by, per second. Never pre-scale it by `scene.dt` — this multiplies by the frame time itself.
+    fn integrate(position: &f32x3, velocity: f32x3) {
+        position = position + velocity * scene.dt;
+    }
+
+    // PopcornFX's `Legacy_Rotation` template (Legacy.pkfx) with its defaults (screen-aligned,
+    // `ScreenSpaceRotationCoeff` 1) bakes to `Rotation = Rotation + ScalarRotationSpeed * dt`: the
+    // scalar twin of `integrate(position, velocity)` above. A separate name rather than a generic
+    // `integrate<T>`: overloads are told apart by arity and `&`-ness only, and the rotation reads
+    // better named for what it turns.
+    //
+    // A VALUE function on purpose (`Rotation = physics.spin(v2, speed)`), not `rotation: &f32`. Both
+    // verify, but measured on 50 game files (templates audit) the `&` form moved the rebuilt program
+    // further from the baker's in 46 of them (placing a procedure drops the program's early
+    // `let v = Rotation;` load and re-reads the field at the call), while this form, which replaces
+    // the store's right-hand side in place, moved 21 closer and 16 further.
+    /// @brief Spin a billboard: its `rotation` angle advanced by `speed` per second over this frame, what PopcornFX's `Legacy_Rotation` template bakes to with its defaults. Store it back: `Rotation = physics.spin(Rotation, speed);`.
+    ///
+    /// @param rotation The particle's rotation angle.
+    /// @param speed The rotation speed, per second. Never pre-scale it by `scene.dt`.
+    ///
+    /// @result The angle after this frame.
+    fn spin(rotation: f32, speed: f32) -> f32 {
+        rotation + speed * scene.dt
+    }
+
+    /// Bounce off a horizontal plane at `height`, keeping `restitution` of the vertical speed.
+    ///
+    /// Snaps the particle to the plane rather than reflecting it through, so it cannot tunnel on
+    /// a slow frame. Only the `z` component is reflected; horizontal motion is untouched (add a
+    /// `drag` call if you want friction along the floor).
+    /// @brief Bounce off a horizontal plane at `height`, keeping `restitution` of the vertical speed. Snaps the particle to the plane rather than reflecting it through, so it cannot tunnel on a slow frame. Only `z` is reflected; horizontal motion is untouched.
+    ///
+    /// @param position The particle's position, snapped onto the plane when it is below.
+    /// @param velocity The particle's velocity; its vertical component is reflected and scaled.
+    /// @param height Where the floor is, on the z axis.
+    /// @param restitution The fraction of vertical speed kept on impact. 1 bounces for ever, 0 stops dead.
+    fn bounce_floor(
+        position: &f32x3,
+        velocity: &f32x3,
+        height: f32 = 0.0,
+        restitution: f32 = 0.5,
+    ) {
+        let below : bool = position.z < height;
+        let bounced : f32x3 = #f32x3(velocity.x, velocity.y, abs(velocity.z) * restitution);
+        position = select(below, #f32x3(position.x, position.y, height), position);
+        velocity = select(below, bounced, velocity);
+    }
+
+    // ─── The full integrator ──────────────────────────────────────────────────────────────
+
+    /// One frame of motion under constant acceleration **and** linear drag toward a wind field —
+    /// solved in closed form rather than stepped, so it stays correct at any frame rate.
+    ///
+    /// # The model
+    ///
+    /// Velocity obeys `dv/dt = a + k·(wind − v)`, where `k = drag / mass` is the drag rate in
+    /// 1/s. That is a first-order linear ODE with the exact solution
+    ///
+    /// ```text
+    ///   v(t) = v₀·e^(−k·t) + wind·(1 − e^(−k·t)) + a·∫₀ᵗ e^(−k·s) ds
+    ///   p(t) = p₀ + v₀·∫₀ᵗ e^(−k·s) ds + wind·(t − ∫…) + a·∫₀ᵗ∫₀ˢ e^(−k·u) du ds
+    /// ```
+    ///
+    /// so the whole step reduces to three scalars, computed once and reused:
+    ///
+    /// | | | small-`k` meaning |
+    /// |---|---|---|
+    /// | `expkdt`     | `e^(−k·dt)` — the fraction of velocity surviving the frame | → 1 |
+    /// | `expfact_o1` | `∫₀^dt e^(−k·s) ds = (1 − e^(−k·dt))/k` — effective time for velocity | → dt |
+    /// | `expfact_o2` | the double integral `(dt − expfact_o1)/k` — effective time for acceleration | → dt²/2 |
+    ///
+    /// With no drag those collapse to `1`, `dt`, `dt²/2`, i.e. plain `p += v·dt + a·dt²/2` —
+    /// exactly velocity-Verlet. So the full `integrate` is a strict generalisation of the simple case,
+    /// not a different scheme.
+    ///
+    /// # Why the two branches
+    ///
+    /// The closed forms divide by `k`, so they lose all their significant digits as `k → 0`
+    /// (`(1 − e^(−k·dt))/k` is `0/0`). Below `k = 0.1` the code switches to the Taylor series of
+    /// the same expressions, which is well-conditioned there:
+    ///
+    /// ```text
+    ///   e^(−k·dt)   ≈ 1 + k·dt·(−1 + k·dt/2)
+    ///   expfact_o1  ≈ dt + k·dt/2·(−dt + dt·k·dt/3)   =  dt − k·dt²/2 + k²·dt³/6
+    ///   expfact_o2  ≈ −dt/2·(−dt + dt·k·dt/3)         =  dt²/2 − k·dt³/6
+    /// ```
+    ///
+    /// Both arms are always evaluated — `select` discards one, it does not skip it — so the
+    /// branch costs arithmetic, not divergence.
+    ///
+    /// # Order is load-bearing
+    ///
+    /// `position` is updated **before** `velocity`, so it integrates the velocity the particle
+    /// had entering the frame. Swapping the two lines applies this frame's acceleration to this
+    /// frame's displacement and makes the trajectory asymmetric — a launched particle no longer
+    /// lands where it was thrown from.
+    ///
+    /// # Parameters
+    ///
+    /// - `position`, `velocity` — the state, updated in place.
+    /// - `acceleration` — constant acceleration for the frame, in units/s². Gravity goes here as
+    ///   `#f32x3(0, 0, -g)`. NOT divided by `mass`.
+    /// - `wind` — the velocity the particle is dragged toward. Has no effect when `drag` is 0.
+    /// - `mass` — divides `drag` only; heavier particles are less affected by it. Must be > 0.
+    /// - `drag` — drag coefficient; `drag/mass` is the decay rate in 1/s. 0 = vacuum.
+    ///
+    /// (`drag` names both this parameter and the `physics.drag` function above. There is no
+    /// ambiguity — a bare name is the parameter, a call is the function — but note that the
+    /// parameter name is API, since it can be passed by keyword: `drag = 2.0`.)
+    ///
+    /// Based on the PopcornFX algorithm for matching inlined functions and reconstruct
+    /// @brief One frame of motion under constant acceleration AND linear drag toward a wind field, solved in closed form rather than stepped, so it stays correct at any frame rate. With no drag it collapses to plain velocity-Verlet, so it is a strict generalisation of the simple case.
+    ///
+    /// @param position The particle's position, updated in place.
+    /// @param velocity The particle's velocity, updated in place.
+    /// @param acceleration Constant acceleration for the frame, in units/s². Gravity goes here as `#f32x3(0, 0, -g)`. NOT divided by `mass`.
+    /// @param wind The velocity the particle is dragged toward. Has no effect when `drag` is 0.
+    /// @param mass Divides `drag` only; heavier particles are less affected by it. Must be greater than 0.
+    /// @param drag The drag coefficient; `drag/mass` is the decay rate in 1/s. 0 is a vacuum.
+    fn integrate(
+        position: &f32x3,
+        velocity: &f32x3,
+        acceleration: f32x3 = #f32x3(0.0, 0.0, 0.0),
+        wind: f32x3 = #f32x3(0.0, 0.0, 0.0),
+        mass: f32 = 1.0,
+        drag: f32 = 0.0
+    ) {
+        let dt : f32 = scene.dt;
+        let k  : f32 = drag / mass;          // drag rate, 1/s
+        // Above this threshold the closed forms are well-conditioned; below it they divide by a
+        // near-zero `k` and lose their significant digits, so the Taylor series takes over.
+        let selector : bool = k >= 0.1;
+        // `dt * k`, not the template script's `k * dt`: the baker puts the constant on the right, and
+        // every baked drag reads `exp(-(scene.dt * 2.0))`.
+        let kdt : f32 = dt * k;
+
+        // The Taylor terms, grouped as the baker writes them: `kdt / 2.0` is `dt * (k * 0.5)`, and
+        // `1.0 + kdt * (…)` is `kdt * (…) + 1.0`. Grouped otherwise, a drag rate under 0.1 folds to
+        // the same values in another order, which no baked effect has.
+        let half : f32 = k * 0.5;
+        let expm1 : f32 = kdt * (dt * half + -1.0);              // expkdt - 1
+        let taylor : f32 = -dt + dt * 0.33333334 * kdt;
+
+        let expkdt : f32 = select(selector, exp(-kdt), expm1 + 1.0);
+
+        let expfact_o1 : f32 = select(selector,
+                                      (1.0 - expkdt) / k,
+                                      dt + dt * half * taylor);
+
+        let expfact_o2 : f32 = select(selector,
+                                      (-expfact_o1 + dt) / k,
+                                      -dt * 0.5 * taylor);
+
+        // Position first — it must integrate the velocity the particle ENTERED the frame with.
+        position = position + velocity * expfact_o1
+                            + acceleration * expfact_o2
+                            // `#f32x3(k, k, k)`, not `k`: the baker writes the drag rate of the wind term as
+                            // a VECTOR constant (`… * #f32x3(2.0, 2.0, 2.0)`), where a scalar `k` compiles
+                            // to a broadcast no baked blob contains.
+                            + wind * expfact_o2 * #f32x3(k, k, k);
+        velocity = velocity * expkdt
+                            + acceleration * expfact_o1
+                            + wind * (1.0 - expkdt);
+    }
+
+    // PopcornFX's `Physics` template with its vector-field (turbulence) input wired: the field is the
+    // velocity the particle is dragged toward, and the baker then writes the position's field term as
+    // `field * #f32x3(k, k, k) * e2`, the drag rate next to the field, where `integrate` above has
+    // it after the time factor for a constant wind. Same arithmetic, a different association.
+    /// @brief One frame of PopcornFX's `Physics` template with its vector field (turbulence) input wired: constant acceleration plus linear drag toward a per-particle field velocity, in closed form.
+    ///
+    /// @param position The particle's position, updated in place.
+    /// @param velocity The particle's velocity, updated in place.
+    /// @param field The field velocity the particle is dragged toward, sampled at the particle.
+    /// @param acceleration Constant acceleration for the frame, in units/s².
+    /// @param mass Divides `drag` only. Must be greater than 0.
+    /// @param drag The drag coefficient; `drag/mass` is the decay rate in 1/s.
+    fn integrate_in_field(
+        position: &f32x3,
+        velocity: &f32x3,
+        field: f32x3,
+        acceleration: f32x3 = #f32x3(0.0, 0.0, 0.0),
+        mass: f32 = 1.0,
+        drag: f32 = 1.0
+    ) {
+        let dt : f32 = scene.dt;
+        let k  : f32 = drag / mass;
+        let selector : bool = k >= 0.1;
+        let kdt : f32 = dt * k;
+        // The Taylor terms grouped as the baker writes them, as in `integrate` above.
+        let half : f32 = k * 0.5;
+        let expm1 : f32 = kdt * (dt * half + -1.0);
+        let taylor : f32 = -dt + dt * 0.33333334 * kdt;
+        let expkdt : f32 = select(selector, exp(-kdt), expm1 + 1.0);
+        let expfact_o1 : f32 = select(selector, (1.0 - expkdt) / k, dt + dt * half * taylor);
+        let expfact_o2 : f32 = select(selector, (-expfact_o1 + dt) / k, -dt * 0.5 * taylor);
+        position = position + velocity * expfact_o1
+                            + acceleration * expfact_o2
+                            + field * #f32x3(k, k, k) * expfact_o2;
+        velocity = velocity * expkdt
+                            + acceleration * expfact_o1
+                            + field * (1.0 - expkdt);
+    }
+
+    /// Ballistic motion: constant downward gravity, nothing else.
+    ///
+    /// The overwhelmingly common case of the full `integrate` above — acceleration is `gravity`
+    /// pulling along `-z` (WC3 is Z-up), with no wind, unit mass and no drag. Written as a
+    /// separate overload because a scalar `gravity` reads better than an acceleration vector at
+    /// the call site, and because "how heavy does this feel" is the one knob most effects want.
+    ///
+    /// Distinguished from the acceleration overload by the TYPE of the third argument — `9.81` is
+    /// a scalar, `#f32x3(0.0, 0.0, -9.81)` is not — so both spellings resolve positionally.
+    ///
+    /// Cost: nothing. Every argument it adds is a constant, so the general form specialises back
+    /// down to the same code an explicit `integrate(p, v, #f32x3(0.0, 0.0, -g))` produces.
+    /// @brief Ballistic motion: constant downward gravity, nothing else. The overwhelmingly common case of the full `integrate`, written separately because a scalar gravity reads better at the call site than an acceleration vector. Costs nothing extra — every argument it adds is a constant, so it specialises back down to the same code.
+    ///
+    /// @param position The particle's position, updated in place.
+    /// @param velocity The particle's velocity, updated in place.
+    /// @param gravity How hard the pull downward is, along -z since WC3 is Z-up. Bigger feels heavier.
+    fn integrate(position: &f32x3, velocity: &f32x3, gravity: f32 = 9.81) {
+        integrate(position, velocity, #f32x3(0.0, 0.0, -gravity));
+    }
+
+    // ─── Surface constraint ───────────────────────────────────────────────────────────────
+
+    /// Stick the particle to `shape`'s surface: snap `position` onto it and remove the part of
+    /// `velocity` pointing through it.
+    ///
+    /// The particle keeps sliding along the surface at whatever speed it had tangentially, and
+    /// loses whatever it had normally — so it neither sinks in nor bounces off. For a bounce, keep
+    /// the normal component and negate it instead (see `bounce_floor` for the planar case).
+    ///
+    /// # How
+    ///
+    /// The sampler works in the shape's LOCAL space, so both inputs are transformed in, the
+    /// surface is queried, and both results are transformed back out. `projectPCoords` returns the
+    /// shape's parametric coordinates of the nearest surface point — an opaque `i32x3` addressing
+    /// scheme, not a position — which `samplePosition` and `sampleNormal` then resolve. Sampling
+    /// both from the SAME coordinate is what keeps the point and its normal consistent.
+    ///
+    /// The tangential part is `v − n·(v·n)`, the standard projection onto the plane through the
+    /// surface point. It assumes `n` is unit length, which the sampler guarantees; a non-normalised
+    /// normal would scale the removed component and let the particle drift through.
+    ///
+    /// # Costs a full frame of lag
+    ///
+    /// The surface is queried at the particle's CURRENT position, so a particle moving fast enough
+    /// to cross the shape within one frame is snapped to where it entered, not to where it hit.
+    /// Call it after `integrate` and the error is one frame of motion.
+    ///
+    /// The mask on each transform selects which components of the matrix apply — position and
+    /// direction differ because a direction must not pick up the translation. They are not
+    /// interchangeable, and the world→local pair uses different masks from the local→world pair.
+    /// @brief Stick the particle to `shape`'s surface: snap `position` onto it and remove the part of `velocity` pointing through it. The particle keeps sliding along the surface and neither sinks in nor bounces off. The surface is queried at the particle's CURRENT position, so call it after `integrate` and the error is one frame of motion.
+    ///
+    /// @param position The particle's position, updated in place.
+    /// @param velocity The particle's velocity, updated in place.
+    /// @param shape The surface to stick to. Queried in its own LOCAL space, so both inputs are transformed in and both results back out.
+    fn projection(position: &f32x3, velocity: &f32x3, shape : samplerShape_2C) {
+        let local_pos : f32x3 = coord_space.world_to_local_position(position);
+        let local_vel : f32x3 = coord_space.world_to_local_direction(velocity);
+        // Parametric coordinates of the nearest point on the surface — an address, not a position.
+        let surface_coord : i32x3 = shape.projectPCoords(local_pos);
+        let surface_pos : f32x3 = shape.samplePosition(surface_coord);
+        let surface_normal : f32x3 = shape.sampleNormal(surface_coord);
+        let world_pos : f32x3 = coord_space.local_to_world_position(surface_pos);
+        // Drop the velocity into the surface, keep what slides along it.
+        let tangential : f32x3 = local_vel - surface_normal * dot(local_vel, surface_normal).xxx;
+        let world_vel : f32x3 = coord_space.local_to_world_direction(tangential);
+        // Velocity FIRST. Both writes are independent, but `position` is a `&` parameter: once it
+        // is written, everything derived from it is re-derived, and the velocity expression reads
+        // `position` (through `local_pos`). Writing position first therefore makes the velocity
+        // store recompute the whole surface query against the ALREADY-SNAPPED position — correct
+        // arithmetic, but a shape twice the size that matches no baked effect.
+        velocity = world_vel;
+        position = world_pos;
+    }
+
+    // ─── Collision ────────────────────────────────────────────────────────────────────────
+
+    // PopcornFX's `Collision` template (Dynamics.pkfx) with `CollideWith` Scene, in the stages its
+    // subgraphs bake to. `_CollisionDetection_Scene` casts a ray along the frame's motion, from where
+    // the particle was to where integration put it: `scene.intersect` answers the contact normal in
+    // `xyz` and the distance along the ray in `w`, infinite on a miss. `_ComputeBounce` then removes
+    // `1 + restitution` of the velocity into the surface (`_ComputeImpulse`) and, with the
+    // `Absorbsive` friction model, `1 - restitution` of the speed along it
+    // (`_ComputeTangentImpulse`), and spends the rest of the frame moving off the contact point at the
+    // new velocity.
+    //
+    // The state comes in BY VALUE and goes out through `new_position` and `new_velocity`: the new
+    // velocity is derived from the position (the ray) and the new position from the velocity, and a
+    // `&` parameter re-derives what reads it once it is written (see `projection`). Called with the
+    // same fields for both, as `collision` does, it reads the frame's state and writes the result.
+    //
+    // At a restitution of exactly 1 nothing is lost along the surface, and the baker drops the
+    // friction term, `0 * speed`, entirely; CFX folds `x * 0` only where `x` is provably finite, so
+    // the elastic arm says it outright, and a literal restitution compiles to one arm alone.
+    /// @brief Bounce a frame of motion off the scene: cast a ray from `previous` to `position`, and where it hits, reflect `velocity` off the surface and move the rest of the frame from the contact point. Writes the result to `new_position` and `new_velocity`, which may be the fields `position` and `velocity` came from; `physics.collision` is the usual way to call it.
+    ///
+    /// @param new_position Where the particle ends the frame: `position` on a miss.
+    /// @param new_velocity The particle's velocity after the frame: `velocity` on a miss.
+    /// @param position Where integration put the particle this frame.
+    /// @param velocity The particle's velocity after integration.
+    /// @param previous Where the particle was at the start of the frame, where the ray starts.
+    /// @param restitution The fraction of the speed into the surface kept on impact; the same fraction is lost along the surface. 1 bounces for ever, 0 stops dead.
+    /// @param enabled Whether to collide at all this frame. A `false` casts no ray: the particle passes through.
+    /// @param filter The collision filter the game's scene query is handed. Every collision the game bakes passes 0.
+    ///
+    /// @result Whether the particle hit the scene this frame.
+    fn bounce_off_scene(
+        new_position: &f32x3,
+        new_velocity: &f32x3,
+        position: f32x3,
+        velocity: f32x3,
+        previous: f32x3,
+        restitution: f32 = 0.5,
+        enabled: bool = true,
+        filter: i32 = 0
+    ) -> bool {
+        let travel : f32x3 = position - previous;
+        let ray_length : f32 = vec.length(travel);
+        // A frame with no motion still casts a ray, straight up.
+        let ray_dir : f32x3 = vec.safe_normalize_template(travel, vec.UP);
+        let hit_ray : f32x4 = scene.intersect(previous, ray_dir, ray_length, enabled, filter);
+        let contact : f32x3 = previous + ray_dir * hit_ray.www;
+        let normal : f32x3 = vec.safe_normalize(hit_ray.xyz, #f32x3(0.0, 0.0, 0.0));
+        let hit : bool = isfinite(hit_ray.w) & enabled;
+        // How far along the frame's motion the contact is: what is left of the frame is spent
+        // moving away from it.
+        let hit_frac : f32 = select(hit, select(enabled, hit_ray.w, inf) / ray_length, 1.0);
+        let normal_speed : f32 = dot(velocity, normal);
+        let sliding : f32x3 = velocity - normal * normal_speed;
+        // `> 1e-16` on the square: the template's `> 1e-8` on the length, as the baker rewrites it.
+        let sliding_sq : f32 = dot(sliding, sliding);
+        let sliding_speed : f32 = sqrt(sliding_sq);
+        let tangent : f32x3 =
+            select(sliding_sq > 0.0000000000000001, sliding * (1.0 / sliding_speed), #f32x3(0.0, 0.0, 0.0));
+        let impulse : f32x3 = select(restitution == 1.0,
+                                     normal_speed * 2.0 * normal,
+                                     tangent * (sliding_speed * (1.0 - restitution))
+                                         + normal_speed * (restitution + 1.0) * normal);
+        let bounced : f32x3 = velocity - impulse;
+        new_velocity = select(hit, bounced, velocity);
+        new_position = select(hit, contact + bounced * ((1.0 - hit_frac) * scene.dt), position);
+        hit
+    }
+
+    /// @brief Collide with the scene, what PopcornFX's `Collision` template does with `CollideWith` Scene: where the frame's motion from `previous` to `position` crosses scene geometry, the particle bounces off it at the contact point. Call it after integrating the frame, with where the particle was before.
+    ///
+    /// @param position Where integration put the particle this frame, updated in place.
+    /// @param velocity The particle's velocity after integration, updated in place.
+    /// @param previous Where the particle was at the start of the frame: its position before integrating.
+    /// @param restitution The fraction of the speed into the surface kept on impact; the same fraction is lost along the surface. 1 bounces for ever, 0 stops dead.
+    /// @param enabled Whether to collide at all this frame. A `false` lets the particle pass through.
+    /// @param filter The collision filter the game's scene query is handed. Every collision the game bakes passes 0.
+    fn collision(
+        position: &f32x3,
+        velocity: &f32x3,
+        previous: f32x3,
+        restitution: f32 = 0.5,
+        enabled: bool = true,
+        filter: i32 = 0
+    ) {
+        bounce_off_scene(position, velocity, position, velocity, previous, restitution, enabled, filter);
+    }
+
+    // The template's `_DeathAfterBounce` as well: its bounce counter is a field of the particle,
+    // which a template keeps out of sight and CFX hands in as `bounces`. Third, where the other
+    // overload takes `previous`: a call passing four arguments by position then names one or the
+    // other by the third one's width, where an `i32` fourth would read as the other's restitution.
+    /// @brief Collide with the scene as the other `collision` does, and count the bounces: the particle dies on the bounce after `bounces_before_death`, or on its first contact with `die_on_contact`, as PopcornFX's `Collision` template kills it. `bounces` is a field the particle keeps, starting at 0.
+    ///
+    /// @param position Where integration put the particle this frame, updated in place.
+    /// @param velocity The particle's velocity after integration, updated in place.
+    /// @param bounces How many times the particle has hit the scene, updated in place. Keep it in a field that starts at 0.
+    /// @param previous Where the particle was at the start of the frame: its position before integrating.
+    /// @param restitution The fraction of the speed into the surface kept on impact; the same fraction is lost along the surface. 1 bounces for ever, 0 stops dead.
+    /// @param bounces_before_death How many bounces the particle survives. 0 never kills it.
+    /// @param die_on_contact Kill the particle on its first contact, whatever `bounces_before_death` says.
+    /// @param enabled Whether to collide at all this frame. A `false` lets the particle pass through.
+    /// @param filter The collision filter the game's scene query is handed. Every collision the game bakes passes 0.
+    fn collision(
+        position: &f32x3,
+        velocity: &f32x3,
+        bounces: &i32,
+        previous: f32x3,
+        restitution: f32 = 0.5,
+        bounces_before_death: i32 = 1,
+        die_on_contact: bool = false,
+        enabled: bool = true,
+        filter: i32 = 0
+    ) {
+        let hit : bool =
+            bounce_off_scene(position, velocity, position, velocity, previous, restitution, enabled, filter);
+        bounces = bounces + hit as i32;
+        self.kill(hit & die_on_contact | bounces > bounces_before_death & bounces_before_death != 0);
+    }
+
+    // What a baked effect computes to face a particle along its motion: the velocity it moved at
+    // over the frame, from where it was to where it is (`scene.orientation_f_norm` of it, mostly).
+    /// @brief The velocity that carried a particle from `previous` to `current` over this frame: their difference over the frame's length, and zero on a frame with no length, where there is no motion to divide.
+    ///
+    /// @param previous Where the particle was at the start of the frame.
+    /// @param current Where it is now.
+    ///
+    /// @result The velocity, per second.
+    fn velocity_between(previous: f32x3, current: f32x3) -> f32x3 {
+        let dt : f32x3 = scene.dt.xxx;
+        select(dt == #f32x3(0.0, 0.0, 0.0), #f32x3(0.0, 0.0, 0.0), (current - previous) / dt)
+    }
+}

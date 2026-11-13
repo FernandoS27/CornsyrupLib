@@ -1,0 +1,995 @@
+{
+  "stdlib/color::color.with_alpha": {
+    "brief": "替换颜色的 alpha，保持 RGB 不变。",
+    "param": {
+      "c": "要重建的颜色。",
+      "a": "新的 alpha，覆盖原有的值。"
+    },
+    "result": "相同的 RGB，alpha 为 `a`。"
+  },
+  "stdlib/color::color.fade": {
+    "brief": "将颜色的 alpha 乘以 `k`，保持 RGB 不变 —— 即淡出写法。是相乘而非赋值，因此可以叠加：一个因出生颜色已经半透明的粒子会从当前状态继续淡出，而不是从不透明重新开始。",
+    "param": {
+      "c": "要淡出的颜色。",
+      "k": "alpha 的乘数。1 表示不变，0 表示完全不可见。"
+    },
+    "result": "相同的 RGB，alpha 已被缩放。"
+  },
+  "stdlib/color::color.mix": {
+    "brief": "在两个颜色之间混合，包含 alpha。",
+    "param": {
+      "a": "t = 0 时的颜色。",
+      "b": "t = 1 时的颜色。",
+      "t": "落在两者之间的位置。会被 saturate，因此 [0, 1] 之外的值被截断而不是外推。"
+    },
+    "result": "混合后的颜色。"
+  },
+  "stdlib/color::color.gamma": {
+    "brief": "对 RGB 做近似伽马校正（不改动 alpha）。",
+    "param": {
+      "c": "要校正的颜色。",
+      "g": "每个 RGB 通道所取的指数。2.2 是常见的显示伽马值。"
+    },
+    "result": "校正后的颜色，alpha 保持原样。"
+  },
+  "stdlib/color::color.grading": {
+    "brief": "先曝光，再做色相/饱和度/明度偏移，最后转回 RGB —— 标准的调色链路。",
+    "param": {
+      "rgba": "要调色的颜色。",
+      "hsv_offset": "加到 HSV 形式上：色相偏移、饱和度偏移、明度偏移，最后一个通道是 alpha 偏移。",
+      "exp_exposure": "曝光乘数。之所以是向量，是因为编译器就是这样存储统一值的。全为 1 时颜色不变。"
+    },
+    "result": "调色后的颜色，已转回 RGB。"
+  },
+  "stdlib/color::color.adjust_hsv": {
+    "brief": "PopcornFX 的 `Color` 模板：在 HSV 中把颜色按一个常量、再按粒子出生时抽取的自身变化量偏移，然后转回 RGB。",
+    "param": {
+      "rgba": "要调整的颜色。",
+      "shift": "恒定的 HSV 偏移：色相偏移、饱和度偏移、明度偏移，最后一个通道为 0。",
+      "variation": "粒子出生时抽取的 HSV 随机量（`rand(-1, 1) * HSVVariation * 0.5`），存放在一个字段中。"
+    },
+    "result": "调整后的颜色，已转回 RGB。"
+  },
+  "stdlib/color::color.fade_on_stop": {
+    "brief": "PopcornFX `FadeOnStop` 的颜色部分：把每个通道乘以 `1 - time_since_stop`，让粒子随停止计时器的推进而淡出。传入本帧 `life.ratio_since_stop` 之前的计时器值。",
+    "param": {
+      "c": "要淡出的颜色。",
+      "time_since_stop": "`FadeOnStop` 计时器，效果运行时为 0。"
+    },
+    "result": "淡出后的颜色。"
+  },
+  "stdlib/easing::easing.ease_in_quad": {
+    "brief": "从静止开始加速：起步慢、结尾最快。二次曲线。",
+    "param": {
+      "t": "归一化位置，0 到 1。会先 saturate，超出范围的值被截断。"
+    },
+    "result": "缓动后的值，0 到 1。"
+  },
+  "stdlib/easing::easing.ease_out_quad": {
+    "brief": "减速至停止：起步最快、结尾变慢。二次曲线。",
+    "param": {
+      "t": "归一化位置，0 到 1。会先 saturate，超出范围的值被截断。"
+    },
+    "result": "缓动后的值，0 到 1。"
+  },
+  "stdlib/easing::easing.ease_in_cubic": {
+    "brief": "从静止开始加速，比二次曲线更猛，起步几乎是平的。三次曲线。",
+    "param": {
+      "t": "归一化位置，0 到 1。会先 saturate，超出范围的值被截断。"
+    },
+    "result": "缓动后的值，0 到 1。"
+  },
+  "stdlib/easing::easing.ease_out_cubic": {
+    "brief": "减速至停止，比二次曲线更猛，结尾几乎是平的。三次曲线。",
+    "param": {
+      "t": "归一化位置，0 到 1。会先 saturate，超出范围的值被截断。"
+    },
+    "result": "缓动后的值，0 到 1。"
+  },
+  "stdlib/easing::easing.ease_in_out_quad": {
+    "brief": "先从静止加速再减速回到静止，在中点以半速衔接。两半都是二次曲线。",
+    "param": {
+      "t": "归一化位置，0 到 1。会先 saturate，超出范围的值被截断。"
+    },
+    "result": "缓动后的值，0 到 1。"
+  },
+  "stdlib/easing::easing.ease_sine": {
+    "brief": "正弦缓入缓出 —— 廉价缓动里最平滑的一种，两端都看不到折角。",
+    "param": {
+      "t": "归一化位置，0 到 1。会先 saturate，超出范围的值被截断。"
+    },
+    "result": "缓动后的值，0 到 1。"
+  },
+  "stdlib/easing::easing.pulse": {
+    "brief": "一个 0 → 1 → 0 的驼峰：在 [0, peak] 上升，在 [peak, 1] 下降。经典的淡入淡出。",
+    "param": {
+      "t": "归一化位置，0 到 1。",
+      "peak": "驼峰到达 1 的位置。往前挪可以做出快速闪光加长尾巴的效果。"
+    },
+    "result": "驼峰在 `t` 处的值，0 到 1。"
+  },
+  "stdlib/easing::easing.fade_out_after": {
+    "brief": "在 `hold` 之前保持为 1，然后在 t = 1 之前淡到 0。",
+    "param": {
+      "t": "归一化位置，0 到 1。",
+      "hold": "淡出开始之前维持满强度的时长。"
+    },
+    "result": "保持期间为 1，之后降到 0。"
+  },
+  "stdlib/easing::easing.fade_in_out": {
+    "brief": "在 `in_end` 之前上升，保持，然后从 `out_start` 开始下降 —— 是梯形而不是尖峰。",
+    "param": {
+      "t": "归一化位置，0 到 1。",
+      "in_end": "上升段结束、保持段开始的位置。",
+      "out_start": "保持段结束、下降段开始的位置。"
+    },
+    "result": "梯形在 `t` 处的值，0 到 1。"
+  },
+  "stdlib/easing::easing.decay": {
+    "brief": "指数衰减到 0 —— 每经过一个 `half_life` 就减半，且永远不会真正归零。",
+    "param": {
+      "t": "衰减已进行的程度，单位与 `half_life` 相同。",
+      "half_life": "数值减半所需的时长。越小衰减越快。"
+    },
+    "result": "剩余的比例：t = 0 时为 1，之后趋近 0。"
+  },
+  "stdlib/events::events.trigger_on_death": {
+    "brief": "在这个粒子死亡的那个 tick 触发、其他 tick 都不触发的单次生成状态 —— 即 PopcornFX 的 `SimpleOnDeath` 事件节点编译出的结果。可以用 `spawn.emit` 直接触发，或用 `initPayload` 在其上打开负载，再用 `emplace_*` 辅助函数填充。",
+    "result": "`trigger` 返回的生成状态三元组，相当于 `generate` 为速率返回的那种：也就是 `initPayload` 和 `buildPayloadElement` 所接收的值。粒子仍存活的每个 tick 都为空。"
+  },
+  "stdlib/events::events.emplace_payload": {
+    "brief": "向负载追加一个值。请用 `payloads.PackSemantics` 构造 `semantic`，不要直接写数字，否则下一个读代码的人得手工解码。",
+    "param": {
+      "event": "该负载所属的事件。",
+      "gen": "打开该负载时所用的生成状态（`initPayload` 的第二个参数）。",
+      "key": "要追加到的负载键：第一个元素用 `initPayload` 的结果，之后的元素用上一个 `emplace_*` 的结果。",
+      "index": "该元素在事件声明中的位置。必须是字面量，而且是关键参数 —— 索引写错不会报错，只会悄悄出问题。",
+      "value": "每个生成的子粒子所收到的值。",
+      "semantic": "打包了种类与插值方式的字。必须是编译期常量 —— 引擎把它注册为 uniform。"
+    },
+    "result": "下一次追加要用的键。请把它继续往下传，并用最后一个键调用 `kick`，否则所有追加的元素都会被丢弃。"
+  },
+  "stdlib/events::events.emplace_position": {
+    "brief": "追加一个出生位置，并做好标记，让引擎的生成变换能够识别它 —— 即 PopcornFX 的 `EventPayloadAppend` 为 `XFormsPositions` 负载写出的内容。",
+    "param": {
+      "event": "该负载所属的事件。",
+      "gen": "打开该负载时所用的生成状态。",
+      "key": "要追加到的负载键。",
+      "index": "该元素在事件声明中的位置。",
+      "position": "子粒子出生的位置。"
+    },
+    "result": "下一次追加要用的键。"
+  },
+  "stdlib/events::events.emplace_element": {
+    "brief": "追加一个任意宽度的普通值，不带特殊含义 —— 这是最常见的情形。",
+    "param": {
+      "event": "该负载所属的事件。",
+      "gen": "打开该负载时所用的生成状态。",
+      "key": "要追加到的负载键。",
+      "index": "该元素在事件声明中的位置。",
+      "value": "每个生成的子粒子所收到的值。"
+    },
+    "result": "下一次追加要用的键。"
+  },
+  "stdlib/life::life.set_lifetime": {
+    "brief": "设置该粒子的生命时长，以秒为单位 —— 与 PopcornFX 的 `SetLife` 节点作用相同。",
+    "param": {
+      "seconds": "粒子存活多久。传 0 会让它在第一次更新时死亡，与 Life 为 0 的 `SetLife` 相同；要让粒子一直存活直到被其他东西杀死，请传 `inf`。"
+    }
+  },
+  "stdlib/life::life.kill_when": {
+    "brief": "当 `cond` 为真时死亡，否则保持当前寿命。",
+    "param": {
+      "cond": "为真时在本 tick 死亡。按通道逐个求值，因此每个粒子各自判定。"
+    }
+  },
+  "stdlib/life::life.age_ratio": {
+    "brief": "该粒子的归一化年龄。",
+    "result": "出生时为 0，死亡时为 1 —— 所有淡出、尺寸渐变和颜色曲线都由它驱动。"
+  },
+  "stdlib/life::life.select_texture_id_on_age": {
+    "brief": "在粒子的生命期内正向遍历渲染器的图集，从第一帧走到最后一帧。",
+    "param": {
+      "local_rend": "提供网格的渲染器，取其 `Atlas.SubDiv`。这是一个句柄，因此帧数来自调用处所指定的渲染器。"
+    },
+    "result": "对应该粒子年龄的图集帧号（从 1 开始）。将它赋给图层的 `TextureID` 字段。"
+  },
+  "stdlib/life::life.select_texture_id_on_inv_age": {
+    "brief": "在粒子的生命期内反向遍历渲染器的图集，从最后一帧走回第一帧。",
+    "param": {
+      "local_rend": "提供网格的渲染器，取其 `Atlas.SubDiv`。这是一个句柄，因此帧数来自调用处所指定的渲染器。"
+    },
+    "result": "对应该粒子剩余寿命的图集帧号（从 1 开始）。将它赋给图层的 `TextureID` 字段。"
+  },
+  "stdlib/life::life.ratio_since_stop": {
+    "brief": "PopcornFX 的 `InfiniteLife` 和 `FadeOnStop` 模板所维护的停止计时器的一帧：效果运行时为 0，停止后以每秒 `rate` 的速度升到 1。到达 1 时杀死粒子（`self.kill(t == 1.0)`），并用 `color.fade_on_stop` 按 `1 - t` 淡出它的颜色。",
+    "param": {
+      "timer": "模板添加的计时器字段（`LifeRatioSinceStop` / `TimeSinceStop`）：出生时为 0，在 1 处饱和。",
+      "rate": "停止后它走得多快，按每秒计：`InfiniteLife` 为 `1 / DeathDelay`，`FadeOnStop` 为 `FadeSpeed`。`inf` 会在停止后的第一帧杀死粒子。"
+    },
+    "result": "计时器的新值；把它存回字段。"
+  },
+  "stdlib/math::math.DEG2RAD": {
+    "brief": "度转弧度的乘数。引擎的三角函数全部使用弧度，因此人写的角度都得经过它。"
+  },
+  "stdlib/math::math.RAD2DEG": {
+    "brief": "弧度转度的乘数 —— 从引擎角度回到人能读懂的角度的途径。"
+  },
+  "stdlib/math::math.PI": {
+    "brief": "弧度制下的半周 —— 即圆周长与直径之比。"
+  },
+  "stdlib/math::math.TAU": {
+    "brief": "弧度制下的一整圈。`rand(0.0, TAU)` 是取圆周上随机角度的惯用写法。"
+  },
+  "stdlib/math::math.deg_to_rad": {
+    "brief": "将角度从度转换为弧度。",
+    "param": {
+      "d": "以度为单位的角度。"
+    },
+    "result": "以弧度表示的同一角度。"
+  },
+  "stdlib/math::math.rad_to_deg": {
+    "brief": "将角度从弧度转换为度。",
+    "param": {
+      "r": "以弧度为单位的角度。"
+    },
+    "result": "以度表示的同一角度。"
+  },
+  "stdlib/math::math.remap": {
+    "brief": "将 `x` 从 [lo, hi] 区间映射到 [0, 1]。默认会截断。",
+    "param": {
+      "x": "要映射的值。",
+      "lo": "映射为 0 的那个值。",
+      "hi": "映射为 1 的那个值。",
+      "clamped": "是否将结果限制在 [0, 1] 内。为假时允许它超出两端。"
+    },
+    "result": "`x` 在 `lo` 与 `hi` 之间的位置。"
+  },
+  "stdlib/math::math.inv_lerp": {
+    "brief": "不截断的反向插值 —— `x` 在 `lo` 与 `hi` 之间的位置，允许超出两端。",
+    "param": {
+      "x": "要映射的值。",
+      "lo": "映射为 0 的那个值。",
+      "hi": "映射为 1 的那个值。"
+    },
+    "result": "未截断的位置，可能小于 0 或大于 1。"
+  },
+  "stdlib/math::math.remap_range": {
+    "brief": "将 `x` 从 [in_lo, in_hi] 映射到 [out_lo, out_hi] —— 两个区间之间的通用重映射。",
+    "param": {
+      "x": "要映射的值。",
+      "in_lo": "映射到 `out_lo` 的输入值。",
+      "in_hi": "映射到 `out_hi` 的输入值。",
+      "out_lo": "低端最终变成什么。",
+      "out_hi": "高端最终变成什么。",
+      "clamped": "是否将结果限制在输出区间内。"
+    },
+    "result": "重映射后的值。"
+  },
+  "stdlib/math::math.clamp01": {
+    "brief": "将一个值限制在 [0, 1] 内。",
+    "param": {
+      "x": "要映射的值。"
+    },
+    "result": "截断后的值。"
+  },
+  "stdlib/math::math.smoothstep": {
+    "brief": "在 [e0, e1] 上的 Hermite 平滑过渡 —— 它在两端的斜率都为零，因此起止都看不到折角。",
+    "param": {
+      "e0": "过渡开始的位置。",
+      "e1": "过渡结束的位置。",
+      "x": "要映射的值。"
+    },
+    "result": "平滑后的值，0 到 1。"
+  },
+  "stdlib/math::math.blend": {
+    "brief": "线性混合，适用于任意浮点标量或向量。`t` 是标量并会广播，且不会被截断 —— 如果它可能超出范围，请先用 `clamp01` 处理。",
+    "param": {
+      "a": "t = 0 时的值。",
+      "b": "t = 1 时的值。",
+      "t": "落在两者之间的位置。"
+    },
+    "result": "混合后的值。"
+  },
+  "stdlib/math::math.approach": {
+    "brief": "以饱和后的 `rate` 将 `cur` 推向 `target` —— 常见的逐帧缓动。它天然依赖帧率：若不希望如此，请把 `rate` 乘上 `scene.dt`。",
+    "param": {
+      "cur": "当前的值在哪里。",
+      "target": "它要前往的目标。",
+      "rate": "本次调用要补上剩余差距的多少。会被 saturate，因此 1 表示一步到位。"
+    },
+    "result": "迈出一步之后的值。"
+  },
+  "stdlib/math::math.clamp_to": {
+    "brief": "按分量截断到 [lo, hi]，适用于任意浮点标量或向量。",
+    "param": {
+      "v": "要截断的值。",
+      "lo": "每个分量的下限。",
+      "hi": "每个分量的上限。"
+    },
+    "result": "截断后的值。"
+  },
+  "stdlib/math::math.safe_rcp": {
+    "brief": "返回 `1/x`，当 `x` 为 0 时返回 `fallback` —— 引擎的 `rcp(0)` 是 ±inf，会以 NaN 的形式传播。它保护的是结果而非除法：两个分支总是都会求值。",
+    "param": {
+      "x": "要取倒数的值。",
+      "fallback": "当 `x` 恰好为 0 时返回什么。"
+    },
+    "result": "倒数，或者那个回退值。"
+  },
+  "stdlib/math::math.safe_div": {
+    "brief": "返回 `a/b`，当 `b` 为 0 时返回 `fallback`。它保护的是结果而非除法 —— 除法照样执行，其 ±inf 会被丢弃。",
+    "param": {
+      "a": "分子。",
+      "b": "分母。",
+      "fallback": "当 `b` 恰好为 0 时返回什么。"
+    },
+    "result": "商，或者那个回退值。"
+  },
+  "stdlib/math::math.sign_or": {
+    "brief": "即 `sign(x)`，但在恰好为 0 时返回 `zero` 而不是引擎自己的结果 —— 适用于“无方向”必须有具体含义的场合。",
+    "param": {
+      "x": "要取符号的值。",
+      "zero": "恰好为 0 时返回什么。"
+    },
+    "result": "-1、`zero` 或 +1。"
+  },
+  "stdlib/math::degrees.sin": {
+    "brief": "以度给出的角度的正弦值。",
+    "param": {
+      "x": "以度为单位的角度。"
+    },
+    "result": "正弦值，-1 到 1。"
+  },
+  "stdlib/math::degrees.cos": {
+    "brief": "以度给出的角度的余弦值。",
+    "param": {
+      "x": "以度为单位的角度。"
+    },
+    "result": "余弦值，-1 到 1。"
+  },
+  "stdlib/math::degrees.tan": {
+    "brief": "以度给出的角度的正切值。",
+    "param": {
+      "x": "以度为单位的角度。"
+    },
+    "result": "正切值，在接近 90 度处无界。"
+  },
+  "stdlib/math::degrees.asin": {
+    "brief": "反正弦，以度为单位返回。",
+    "param": {
+      "x": "要取反函数的比值。"
+    },
+    "result": "以度为单位的角度。"
+  },
+  "stdlib/math::degrees.acos": {
+    "brief": "反余弦，以度为单位返回。",
+    "param": {
+      "x": "要取反函数的比值。"
+    },
+    "result": "以度为单位的角度。"
+  },
+  "stdlib/math::degrees.atan": {
+    "brief": "反正切，以度为单位返回。如果两个直角边都有，请用 `atan2`，以保留象限信息。",
+    "param": {
+      "x": "要取反函数的比值。"
+    },
+    "result": "以度为单位的角度。"
+  },
+  "stdlib/math::degrees.atan2": {
+    "brief": "向量 (x, y) 的角度，以度为单位覆盖整个圆周 —— 与 `atan` 不同，它保留两个参数的符号，因此象限不会丢失。",
+    "param": {
+      "y": "竖直方向的那条边。",
+      "x": "水平方向的那条边。"
+    },
+    "result": "以度为单位的角度。"
+  },
+  "stdlib/payload::payloads.Lerp.None": {
+    "brief": "只有一个源帧：子粒子原样取得该值，不做插值。"
+  },
+  "stdlib/payload::payloads.Lerp.VectorLinear": {
+    "brief": "两个帧按分量混合 —— 子粒子的值落在两个出生帧之间。"
+  },
+  "stdlib/payload::payloads.Lerp.VectorCubic": {
+    "brief": "四个来源 —— 两个帧加两条导数。这是唯一保留 `buildPayloadElementD` 形式导数流的模式，其他模式都会丢弃它们。"
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionNlerp": {
+    "brief": "两个帧按归一化四元数混合 —— 便宜的旋转混合，走最短路径但角速度并不恒定。"
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionSlerp": {
+    "brief": "两个帧沿大圆混合 —— 角速度恒定，代价高于归一化那种形式。"
+  },
+  "stdlib/payload::payloads.EKind.Generic": {
+    "brief": "一个普通的负载元素，对生成机制没有特殊含义 —— 除变换和子粒子索引以外的一切都该用它。"
+  },
+  "stdlib/payload::payloads.EKind.Position": {
+    "brief": "一个出生位置。该种类会写入负载缓存头部，生成变换会从那里读取。"
+  },
+  "stdlib/payload::payloads.EKind.Orientation": {
+    "brief": "一个出生朝向，处理方式与 `Position` 相同 —— 记录在头部供生成变换使用。"
+  },
+  "stdlib/payload::payloads.EKind.EmittedCount": {
+    "brief": "每个子粒子在这一批中的序号。只有对标量 int 元素才真正生效 —— 其他宽度下引擎只是存下种类，不做任何事。"
+  },
+  "stdlib/payload::payloads.PackSemantics": {
+    "brief": "把负载元素的插值模式和种类打包成 `buildPayloadElement` 的最后一个参数。注意参数顺序：先 `lerp` 后 `kind` —— 引擎自己的 `PackSemantics` 顺序正好相反。",
+    "param": {
+      "lerp": "引擎读取多少个源帧，取自 `Lerp`。",
+      "kind": "该元素对生成机制的含义，取自 `EKind`。默认为 `Generic`，适用于除出生变换和发射序号以外的所有元素。"
+    },
+    "result": "打包后的字。它在构建期折叠，因此给这些值起名字不会有任何开销。"
+  },
+  "stdlib/payload::payloads.ACCUM_SEED": {
+    "brief": "基于速率的发射器中 `generate` 累加器的初始值：进位值 0.99999（float 位模式 `0x3F7FFF58`，略小于 1），因此第一个有任何累加的帧就会发射第一个粒子。"
+  },
+  "stdlib/payload::payloads.seed": {
+    "brief": "按速率发射的发射器 `generate` 累加器的初始值，把 `carry` 个粒子带入第一帧：通道 0 存放该浮点数的位，通道 1 为 0。`seed(0.99999)` 就是 `ACCUM_SEED`。",
+    "param": {
+      "carry": "累加器在第一帧之前持有的粒子份额。计数达到一的那一帧发出第一个粒子。"
+    },
+    "result": "累加器的初始值，在构建时折叠。"
+  },
+  "stdlib/physics::physics.integrate/2": {
+    "brief": "用 `velocity` 把 `position` 推进一帧（显式欧拉）。在更新速度之前调用可得到对称、对时间步长稳定的形式；在之后调用，抛出的粒子会落得偏近。",
+    "param": {
+      "position": "粒子的位置，就地更新。",
+      "velocity": "用于推进的速度，按每秒计。不要事先乘以 `scene.dt` —— 这个函数自己会乘上帧时间。"
+    }
+  },
+  "stdlib/physics::physics.bounce_floor": {
+    "brief": "在高度 `height` 处从水平面弹起，保留竖直速度的 `restitution` 倍。它把粒子贴到平面上而不是穿过去反射，因此在慢帧时不会穿透。只反射 `z`，水平运动保持不变。",
+    "param": {
+      "position": "粒子的位置；当它低于平面时会被贴到平面上。",
+      "velocity": "粒子的速度；其竖直分量会被反射并缩放。",
+      "height": "地面在 z 轴上的位置。",
+      "restitution": "撞击时保留的竖直速度比例。1 会一直弹，0 则立即停住。"
+    }
+  },
+  "stdlib/physics::physics.integrate/6": {
+    "brief": "在恒定加速度与朝风场的线性阻尼共同作用下推进一帧，采用闭式解而非逐步积分，因此在任何帧率下都保持正确。无阻尼时它退化为普通的速度 Verlet，所以这是简单情形的严格推广。",
+    "param": {
+      "position": "粒子的位置，就地更新。",
+      "velocity": "粒子的速度，就地更新。",
+      "acceleration": "本帧的恒定加速度，单位为 单位/秒²。重力写成 `#f32x3(0, 0, -g)` 放在这里。它不会除以 `mass`。",
+      "wind": "粒子被拖向的目标速度。当 `drag` 为 0 时不起作用。",
+      "mass": "只用来除 `drag`；质量越大的粒子受阻尼影响越小。必须大于 0。",
+      "drag": "阻尼系数；`drag/mass` 就是以 1/秒 为单位的衰减率。0 表示真空。"
+    }
+  },
+  "stdlib/physics::physics.integrate_in_field": {
+    "brief": "PopcornFX `Physics` 模板的一帧，接上了它的矢量场（湍流）输入：恒定加速度，加上朝向每个粒子各自的场速度的线性阻力，以闭式求解。",
+    "param": {
+      "position": "粒子的位置，就地更新。",
+      "velocity": "粒子的速度，就地更新。",
+      "field": "粒子被拖向的场速度，在粒子处采样。",
+      "acceleration": "这一帧的恒定加速度，单位为 单位/s²。",
+      "mass": "只用来除 `drag`。必须大于 0。",
+      "drag": "阻力系数；`drag/mass` 是以 1/s 计的衰减率。"
+    }
+  },
+  "stdlib/physics::physics.integrate/3": {
+    "brief": "弹道运动：只有恒定的向下重力，其余一概没有。这是完整 `integrate` 绝大多数时候的用法，单独写一份是因为在调用处标量重力比加速度向量更好读。不会多花任何代价 —— 它补上的参数全是常量，因此会特化回同一份代码。",
+    "param": {
+      "position": "粒子的位置，就地更新。",
+      "velocity": "粒子的速度，就地更新。",
+      "gravity": "向下拉扯的强度，沿 -z 方向，因为 WC3 以 Z 为上。值越大感觉越重。"
+    }
+  },
+  "stdlib/physics::physics.projection": {
+    "brief": "把粒子贴到 `shape` 的表面上：将 `position` 吸附到表面，并去掉 `velocity` 中穿过表面的那部分。粒子会继续沿表面滑行，既不陷进去也不弹开。表面是在粒子当前位置处查询的，因此请在 `integrate` 之后调用，这样误差只有一帧的运动量。",
+    "param": {
+      "position": "粒子的位置，就地更新。",
+      "velocity": "粒子的速度，就地更新。",
+      "shape": "要贴附的表面。它在自己的局部空间中被查询，因此两个输入都要变换进去，两个结果再变换回来。"
+    }
+  },
+  "stdlib/physics::physics.bounce_off_scene": {
+    "brief": "让一帧的运动从场景反弹：从 `previous` 向 `position` 投射一条射线，在命中处把 `velocity` 相对表面反射，并从接触点走完这一帧剩下的时间。结果写入 `new_position` 和 `new_velocity`，它们可以就是 `position` 和 `velocity` 所来自的字段；通常通过 `physics.collision` 调用。",
+    "param": {
+      "new_position": "粒子在这一帧结束时的位置：未命中时为 `position`。",
+      "new_velocity": "这一帧之后粒子的速度：未命中时为 `velocity`。",
+      "position": "积分在这一帧把粒子放到的位置。",
+      "velocity": "积分之后粒子的速度。",
+      "previous": "粒子在这一帧开始时的位置，也就是射线的起点。",
+      "restitution": "撞击时保留的朝向表面的速度比例；沿表面损失同样的比例。1 永远弹跳，0 立刻停住。",
+      "enabled": "这一帧是否进行碰撞。为 `false` 时不投射射线：粒子直接穿过。",
+      "filter": "传给游戏场景查询的碰撞过滤器。游戏烘焙的每个碰撞都传 0。"
+    },
+    "result": "粒子在这一帧是否命中了场景。"
+  },
+  "stdlib/physics::physics.collision/6": {
+    "brief": "与场景碰撞，即 PopcornFX 的 `Collision` 模板在 `CollideWith` 为 Scene 时所做的事：当这一帧从 `previous` 到 `position` 的运动穿过场景几何体时，粒子在接触点反弹。在积分这一帧之后调用，并传入粒子之前的位置。",
+    "param": {
+      "position": "积分在这一帧把粒子放到的位置，就地更新。",
+      "velocity": "积分之后粒子的速度，就地更新。",
+      "previous": "粒子在这一帧开始时的位置：积分之前的位置。",
+      "restitution": "撞击时保留的朝向表面的速度比例；沿表面损失同样的比例。1 永远弹跳，0 立刻停住。",
+      "enabled": "这一帧是否进行碰撞。为 `false` 时粒子直接穿过。",
+      "filter": "传给游戏场景查询的碰撞过滤器。游戏烘焙的每个碰撞都传 0。"
+    }
+  },
+  "stdlib/physics::physics.collision/9": {
+    "brief": "像另一个 `collision` 一样与场景碰撞，并计数弹跳：粒子在 `bounces_before_death` 之后的那次弹跳时死亡，或在 `die_on_contact` 下首次接触时死亡，与 PopcornFX 的 `Collision` 模板杀死它的方式相同。`bounces` 是粒子保留的字段，从 0 开始。",
+    "param": {
+      "position": "积分在这一帧把粒子放到的位置，就地更新。",
+      "velocity": "积分之后粒子的速度，就地更新。",
+      "bounces": "粒子命中场景的次数，就地更新。放在一个从 0 开始的字段里。",
+      "previous": "粒子在这一帧开始时的位置：积分之前的位置。",
+      "restitution": "撞击时保留的朝向表面的速度比例；沿表面损失同样的比例。1 永远弹跳，0 立刻停住。",
+      "bounces_before_death": "粒子能经受住的弹跳次数。0 表示永不因此死亡。",
+      "die_on_contact": "无论 `bounces_before_death` 是多少，都在首次接触时杀死粒子。",
+      "enabled": "这一帧是否进行碰撞。为 `false` 时粒子直接穿过。",
+      "filter": "传给游戏场景查询的碰撞过滤器。游戏烘焙的每个碰撞都传 0。"
+    }
+  },
+  "stdlib/physics::physics.spin": {
+    "brief": "旋转一个公告板：它的角度 `rotation` 在这一帧内按每秒 `speed` 推进，即 PopcornFX 的 `Legacy_Rotation` 模板以默认值编译出的结果。把它存回去：`Rotation = physics.spin(Rotation, speed);`。",
+    "param": {
+      "rotation": "粒子的旋转角。",
+      "speed": "旋转速度，按每秒计。不要事先乘以 `scene.dt`。"
+    },
+    "result": "这一帧之后的角度。"
+  },
+  "stdlib/random::random.rand_signed": {
+    "brief": "位于 [-amount, +amount] 的随机值 —— 围绕 0 的对称抖动。",
+    "param": {
+      "amount": "区间的半宽，向 0 的两侧各延伸这么多。"
+    },
+    "result": "一个介于 `-amount` 与 `+amount` 之间的值。"
+  },
+  "stdlib/random::random.rand_around": {
+    "brief": "围绕 `center` 的随机值，两侧各有 `spread` 的范围。",
+    "param": {
+      "center": "区间的中心。",
+      "spread": "数值可以偏离 `center` 的最大距离，两侧相同。"
+    },
+    "result": "一个介于 `center - spread` 与 `center + spread` 之间的值。"
+  },
+  "stdlib/random::random.rand_box": {
+    "brief": "在以原点为中心、与坐标轴对齐的盒子内取一个随机点。",
+    "param": {
+      "half": "盒子在每个轴向上的半长。"
+    },
+    "result": "盒子内部的一个点。"
+  },
+  "stdlib/random::random.rand_dir_xy": {
+    "brief": "水平面内的随机方向（WC3 以 Z 为上，所以是 x 与 y），可以附加一个竖直分量。",
+    "param": {
+      "z": "归一化之前朝 +z 离开平面的倾斜量。0 表示保持水平。"
+    },
+    "result": "一个单位方向向量。"
+  },
+  "stdlib/random::random.rand_dir": {
+    "brief": "随机的单位方向，在球面上均匀分布 —— 即 PopcornFX 的 `vrand()`。",
+    "result": "一个单位方向。"
+  },
+  "stdlib/random::random.jitter": {
+    "brief": "以每个轴上不超过 `amount` 的随机偏移来扰动一个位置。",
+    "param": {
+      "pos": "要扰动的位置。",
+      "amount": "单个轴上允许的最大偏移量。"
+    },
+    "result": "抖动之后的位置。"
+  },
+  "stdlib/space::coord_space.local_to_world_position_xtrans_only": {
+    "brief": "把一个点从发射器局部空间搬到世界空间，只做平移。旋转原点等同于恒等变换，因此编译器在这里从不为旋转付出代价。",
+    "param": {
+      "local_pos": "位于发射器局部空间的点。"
+    },
+    "result": "同一个点在世界空间中的表示。"
+  },
+  "stdlib/space::coord_space.local_to_world_position": {
+    "brief": "把一个点从发射器局部空间搬到世界空间，除平移外还会旋转 —— 这是出生位置的常规情形。",
+    "param": {
+      "local_pos": "位于发射器局部空间的点。"
+    },
+    "result": "同一个点在世界空间中的表示。"
+  },
+  "stdlib/space::coord_space.local_to_world_direction": {
+    "brief": "把一个方向从发射器局部空间搬到世界空间。只做旋转 —— 方向绝不能沾上发射器的平移。",
+    "param": {
+      "local_dir": "位于发射器局部空间的方向。"
+    },
+    "result": "同一个方向在世界空间中的表示。"
+  },
+  "stdlib/space::coord_space.world_to_local_position": {
+    "brief": "把一个点从世界空间带回发射器局部空间 —— 形状采样器就是要这个方向的输入。",
+    "param": {
+      "world_pos": "位于世界空间的点。"
+    },
+    "result": "同一个点在发射器局部空间中的表示。"
+  },
+  "stdlib/space::coord_space.world_to_local_direction": {
+    "brief": "把一个方向从世界空间带回发射器局部空间。只做旋转，理由与它向外的孪生函数不做平移相同。",
+    "param": {
+      "world_dir": "位于世界空间的方向。"
+    },
+    "result": "同一个方向在发射器局部空间中的表示。"
+  },
+  "stdlib/space::coord_space.world_to_local_position_prev": {
+    "brief": "把上一帧世界空间中的点带到上一帧的发射器局部空间 —— 逐帧增量就是这样构造的。这是语料中唯一设置 Prev 位的掩码，而且两侧同时设置。",
+    "param": {
+      "world_pos": "位于上一帧世界空间的点。"
+    },
+    "result": "同一个点在上一帧发射器局部空间中的表示。"
+  },
+  "stdlib/space::coord_space.world_prev_to_world_position": {
+    "brief": "把一个点从上一帧的世界空间带到这一帧的世界空间：把发射器在这一帧中的运动施加到它身上。粒子就是这样跟随移动的发射器的。",
+    "param": {
+      "world_pos": "该点，位于上一帧的世界空间。"
+    },
+    "result": "同一个点，位于这一帧的世界空间。"
+  },
+  "stdlib/space::coord_space.local_to_world_position_scaled": {
+    "brief": "把一个点从发射器局部空间移到世界空间，除平移外还旋转并缩放它：随发射器一起缩放的图层的出生位置。",
+    "param": {
+      "local_pos": "该点，位于发射器局部空间。"
+    },
+    "result": "同一个点，位于世界空间。"
+  },
+  "stdlib/space::coord_space.world_to_local_position_xtrans_only": {
+    "brief": "把一个点从世界空间移到发射器局部空间，只做平移：`local_to_world_position_xtrans_only` 的逆。",
+    "param": {
+      "world_pos": "该点，位于世界空间。"
+    },
+    "result": "同一个点，位于发射器局部空间。"
+  },
+  "stdlib/space::coord_space.rotation_about_z": {
+    "brief": "绕向上轴（Z）旋转 `time * degrees_per_second` 度的旋转，以朝向表示：PopcornFX 就是这样以恒定速率旋转粒子朝向的。",
+    "param": {
+      "time": "已经旋转了多久，单位为秒。",
+      "degrees_per_second": "旋转速率。"
+    },
+    "result": "该旋转，一个绕 Z 的单位四元数。"
+  },
+  "stdlib/space::coord_space.world_base_position": {
+    "brief": "发射器原点在世界空间中的位置 —— 也就是这个发射器此刻在哪里。",
+    "result": "发射器的世界位置。"
+  },
+  "stdlib/spawn::spawn.emit": {
+    "brief": "用一个生成数量触发 `evt`，不带任何逐子粒子的负载 —— 这是最简单的发射方式。",
+    "param": {
+      "evt": "要触发的事件。",
+      "gen": "本帧的生成状态，直接来自 `generate`：进位、总数和键。"
+    }
+  },
+  "stdlib/spawn::spawn.emit_1": {
+    "brief": "触发 `evt` 并携带一个负载元素。请先用 `buildPayloadElement` 构造该元素。",
+    "param": {
+      "evt": "要触发的事件。",
+      "gen": "本帧的生成状态，直接来自 `generate`。",
+      "elem": "要携带的元素句柄。",
+      "index": "该元素在这个事件的 `events.cfx` 声明中的位置。这是关键参数 —— 索引写错不会报错，只会悄悄出问题。",
+      "channel": "这次发射的缓存键，即 `initPayload` 的第一个参数：除非图层每帧多次发送该事件，否则就是该事件在图层事件中的位置。"
+    }
+  },
+  "stdlib/spawn::spawn.emit_2": {
+    "brief": "触发 `evt` 并携带两个负载元素，键会在两次追加之间依次传递 —— 若把最初的键交给 `kick`，两个元素都会丢失。",
+    "param": {
+      "evt": "要触发的事件。",
+      "gen": "本帧的生成状态，直接来自 `generate`。",
+      "elem0": "第一个元素的句柄。",
+      "elem1": "第二个元素的句柄。",
+      "index0": "第一个元素在事件声明中的位置。",
+      "index1": "第二个元素在事件声明中的位置。",
+      "channel": "这次发射的缓存键，即 `initPayload` 的第一个参数：除非图层每帧多次发送该事件，否则就是该事件在图层事件中的位置。"
+    }
+  },
+  "stdlib/spawn::spawn.emit_3": {
+    "brief": "触发 `evt` 并携带三个负载元素，键会依次穿过这三次追加。",
+    "param": {
+      "evt": "要触发的事件。",
+      "gen": "本帧的生成状态，直接来自 `generate`。",
+      "elem0": "第一个元素的句柄。",
+      "elem1": "第二个元素的句柄。",
+      "elem2": "第三个元素的句柄。",
+      "index0": "第一个元素在事件声明中的位置。",
+      "index1": "第二个元素在事件声明中的位置。",
+      "index2": "第三个元素在事件声明中的位置。",
+      "channel": "这次发射的缓存键，即 `initPayload` 的第一个参数：除非图层每帧多次发送该事件，否则就是该事件在图层事件中的位置。"
+    }
+  },
+  "stdlib/templates::RootLayerTemplate": {
+    "brief": "根发射器：几乎每个 WC3 特效的第 0 层。它本身不携带粒子 —— 而是走遍 `EventStream` 采样器烘培好的时间线，每一项触发一个事件，子图层就从那里生成。",
+    "param": {
+      "_sd_eventStream": "要走遍的时间线。它是一个参数而不是写死的句柄，因为采样器句柄在另一个包里毫无意义 —— 正是参数化才让它可以复用。"
+    }
+  },
+  "stdlib/templates::EventMultiplier": {
+    "brief": "基于速率的发射器：在 `_t_Duration` 秒内每秒触发 `_t_EmissionRate` 个事件。它是 `RootLayerTemplate` 的对应物，适用于持续发射而非依据烘培时间线的图层。",
+    "param": {
+      "_t_EmissionRate": "每秒触发多少个事件。",
+      "_t_Duration": "继续发射多久。`inf` 表示贯穿整个特效 —— `rcp(inf)` 在构建期折叠为 0，因此字节码与手写无限寿命一模一样。"
+    }
+  },
+  "stdlib/templates::TerminationTemplate": {
+    "brief": "一个比特效多活一帧的图层，好让收尾事件有地方可以触发。当特效停止运行后它开始累加计时器，计时器饱和时就自杀。",
+    "param": {
+      "_ev_Trigger": "本图层声明、并交由图去连接的事件。把它做成命名参数，是为了让模板应用到已有图层时重命名它自己的事件，而不是在旁边再添一个。"
+    }
+  },
+  "stdlib/templates::TexturedBillboard": {
+    "brief": "普通的贴图公告板 —— 这是语料中最常见的渲染器。子声明仍可自行补充所需的内容：合并是叠加式的，因此模板无需预先考虑所有变体。",
+    "param": {
+      "_t_Texture": "绘制在四边形上的图像。",
+      "_t_Mode": "四边形以何种方式转向面对相机。"
+    }
+  },
+  "stdlib/templates::SoftBillboard": {
+    "brief": "一种靠近场景几何体时会淡出的公告板，而不是在其上切出一条硬边。",
+    "param": {
+      "_t_Texture": "绘制在四边形上的图像。",
+      "_t_Softness": "淡出从距离几何体多远处开始。值越大越柔和。",
+      "_t_Mode": "四边形以何种方式转向面对相机。"
+    }
+  },
+  "stdlib/templates::AtlasBillboard": {
+    "brief": "翻页动画公告板。粒子通过渲染器的 `TextureID` 输入选择帧，引擎会将其截断到 `frameCount - 1`。",
+    "param": {
+      "_t_Texture": "绘制在四边形上的图像。",
+      "_t_SubDiv": "以 `(列数, 行数)` 表示的网格，各自为 1 到 64。帧按行优先排列，列变化最快，第 0 帧在顶部。",
+      "_t_Mode": "四边形以何种方式转向面对相机。",
+      "_t_MotionVectors": "用于在帧之间混合的运动向量图。默认使用引擎自带的扭曲贴图。"
+    }
+  },
+  "stdlib/templates::SingleShot": {
+    "brief": "`RootLayerTemplate` 所读取的单项事件时间线：在 t = 0 处只有一项，因此特效启动时发射一次。在大多数包里它就是 `sd0`。"
+  },
+  "stdlib/templates::SimpleCylinder": {
+    "brief": "一个圆柱形的生成体积。它的工作区位置排在最前面且是参数，因为采样器字段的顺序会一直保留到 .pkb，而子声明的字段是接在模板之后的 —— 所以凡是必须打头阵的东西都得由模板提供。",
+    "param": {
+      "_t_Position": "节点在编辑器工作区中的坐标。它排在最前，因为字段顺序会保留到 .pkb。",
+      "_t_Radius": "圆柱的外半径。"
+    }
+  },
+  "stdlib/vec::vec.UP": {
+    "brief": "世界的上方向轴，+z：WC3 以 Z 为上。重力沿 `-UP` 方向作用。"
+  },
+  "stdlib/vec::vec.FORWARD": {
+    "brief": "前方轴，+y。当一个向量太短、无法归一化时，用它作为回退方向。"
+  },
+  "stdlib/vec::vec.RIGHT": {
+    "brief": "向右的轴，+x，与 `FORWARD`、`UP` 一起构成完整的右手基。"
+  },
+  "stdlib/vec::vec.length_sq": {
+    "brief": "长度的平方 —— 只比较距离时比 `length` 更省，因为省掉了开方。",
+    "param": {
+      "v": "要测量的向量。"
+    },
+    "result": "`v` 与自身的点积。"
+  },
+  "stdlib/vec::vec.safe_normalize": {
+    "brief": "与 `normalize(v)` 相同，但对（接近）零向量返回 `fallback` 而不是 NaN —— 即 PopcornFX 的 `safe_normalize`。",
+    "param": {
+      "v": "要归一化的向量。",
+      "fallback": "当 `v` 太短、没有方向可言时所使用的方向。",
+      "epsilon": "长度低于此值时，`v` 视为零向量。"
+    },
+    "result": "单位向量，或者 `fallback`。"
+  },
+  "stdlib/vec::vec.safe_normalize_template": {
+    "brief": "`normalize(v)`，但对短于 2.5e-7 的向量返回 `fallback` —— PopcornFX Core 的“safe normalize”模板，它用 `<=` 比较，而内置的 `safe_normalize` 用 `<`。",
+    "param": {
+      "v": "要归一化的向量。",
+      "fallback": "当 `v` 太短而没有方向时使用的方向。"
+    },
+    "result": "单位向量，或 `fallback`。"
+  },
+  "stdlib/vec::vec.normalize": {
+    "brief": "缩放到单位长度的 `v` —— PopcornFX 的 `normalize`。零向量会得到 NaN；参见 `safe_normalize`。",
+    "param": {
+      "v": "要归一化的向量。"
+    },
+    "result": "沿 `v` 方向的单位向量。"
+  },
+  "stdlib/vec::vec.length": {
+    "brief": "`v` 的长度 —— PopcornFX 的 `length`。",
+    "param": {
+      "v": "要测量的向量。"
+    },
+    "result": "它的欧几里得长度。"
+  },
+  "stdlib/vec::vec.dist": {
+    "brief": "两点之间的距离。",
+    "param": {
+      "a": "第一个点。",
+      "b": "第二个点。"
+    },
+    "result": "两者之间的距离。"
+  },
+  "stdlib/vec::vec.dir_to": {
+    "brief": "从 `a` 指向 `b` 的单位向量；两点重合时返回 `fallback`。",
+    "param": {
+      "a": "起始点。",
+      "b": "目标点。",
+      "fallback": "当 `a` 与 `b` 是同一个点时所使用的方向。"
+    },
+    "result": "从 `a` 到 `b` 的单位方向。"
+  },
+  "stdlib/vec::vec.project": {
+    "brief": "`a` 在 `b` 上的投影 —— `a` 中沿着 `b` 的那一部分。",
+    "param": {
+      "a": "被投影的向量。",
+      "b": "投影所依据的向量，不必是单位长度。"
+    },
+    "result": "`a` 沿 `b` 方向的分量。"
+  },
+  "stdlib/vec::vec.reflect": {
+    "brief": "以单位法线 `n` 为镜面反射 `v`。若法线未归一化，反射会被缩放，结果随之漂移。",
+    "param": {
+      "v": "入射向量。",
+      "n": "表面法线，必须是单位长度。"
+    },
+    "result": "反射之后的向量。"
+  },
+  "stdlib/vec::vec.with_x": {
+    "brief": "重建一个 f32x3，其中 x 通道被替换。",
+    "param": {
+      "v": "要重建的向量。",
+      "x": "x 通道的新值。"
+    },
+    "result": "x 通道已被替换的向量。"
+  },
+  "stdlib/vec::vec.with_y": {
+    "brief": "重建一个 f32x3，其中 y 通道被替换。",
+    "param": {
+      "v": "要重建的向量。",
+      "y": "y 通道的新值。"
+    },
+    "result": "y 通道已被替换的向量。"
+  },
+  "stdlib/vec::vec.with_z": {
+    "brief": "重建一个 f32x3，其中 z 通道被替换。在 WC3 的 Z 向上世界里，这就是高度。",
+    "param": {
+      "v": "要重建的向量。",
+      "z": "z 通道的新值。"
+    },
+    "result": "z 通道已被替换的向量。"
+  },
+  "stdlib/vec::vec.scale_xy": {
+    "brief": "只缩放水平面（在 WC3 以 Z 为上的世界中即 x 与 y），保持高度不变 —— 让爆发向外扩散而不抬升。",
+    "param": {
+      "v": "要缩放的向量。",
+      "s": "应用到 x 和 y 上的系数。"
+    },
+    "result": "x 与 y 被缩放、z（高度）保持不变的向量。"
+  },
+  "stdlib/xform::xform.Filter.None": {
+    "brief": "不包含变换的任何部分。没有过滤位的掩码是编程错误，而不是空操作 —— 引擎会对它断言失败。"
+  },
+  "stdlib/xform::xform.Filter.Translate": {
+    "brief": "应用平移。这是区分同一个引擎函数的“点”与“方向”两种写法的唯一位：点会平移，方向不会。"
+  },
+  "stdlib/xform::xform.Filter.Rotate": {
+    "brief": "应用旋转。四元数只能被旋转 —— 朝向重载会断言这必须是整个过滤位，而不只是其中一部分。"
+  },
+  "stdlib/xform::xform.Filter.Scale": {
+    "brief": "应用缩放。语料中只有一个掩码设置它：`L2W_PointScaled`，即随发射器一起缩放的图层的出生位置。"
+  },
+  "stdlib/xform::xform.Filter.Full": {
+    "brief": "字段掩码：全部三个部分。用它从掩码中读出过滤器。语料中只有一个掩码同时要求三者，即 `L2W_PointScaled`。"
+  },
+  "stdlib/xform::xform.Space.World": {
+    "brief": "世界空间 —— 所有东西共享的那个空间。"
+  },
+  "stdlib/xform::xform.Space.WorldPrev": {
+    "brief": "本帧开始时的世界空间。逐帧增量就是靠读取它构造出来的。"
+  },
+  "stdlib/xform::xform.Space.EmitterLocal": {
+    "brief": "发射器自身的空间。只有“发射器局部 → 世界”这个方向会读取逐粒子的生成变换；其他方向拿到的都是广播给所有粒子的发射器变换。"
+  },
+  "stdlib/xform::xform.Space.EmitterLocalPrev": {
+    "brief": "本帧开始时的发射器空间。把它与 `EmitterLocal` 配成一对是一个真实的变换，而引擎干脆拒绝执行 —— 两边都是局部空间的组合会短路成一次流复制。"
+  },
+  "stdlib/xform::xform.Space.MaskPrev": {
+    "brief": "空间字段的第 0 位：“上一帧的变换”。引擎会把它与局部性位分开读取，因此两者可以自由组合。"
+  },
+  "stdlib/xform::xform.Space.MaskSpace": {
+    "brief": "空间字段的第 1 位：表示“发射器局部”而非世界。"
+  },
+  "stdlib/xform::xform.Space.MaskFull": {
+    "brief": "空间字段的两个位，用于从掩码中读出它而不是构造它。"
+  },
+  "stdlib/xform::xform.Mask": {
+    "brief": "构造掩码字：要变换什么、离开哪个空间、进入哪个空间。`enter`/`leave` 采用引擎自己的命名，因此 `xform_l2w` 就是 `enter = EmitterLocal, leave = World`。",
+    "param": {
+      "filter": "应用变换的哪一部分，取自 `Filter`。没有过滤位的掩码是错误。",
+      "enter": "要离开的空间 —— 尽管名字叫 enter，它其实是源空间。默认为 `World`。",
+      "leave": "要进入的空间 —— 即目标空间。默认为 `World`，也就是 `w2l` 调用不去动的那一半。"
+    },
+    "result": "打包后的掩码字。它在构建期折叠，因此给各部分起名字不会有任何开销。"
+  },
+  "stdlib/xform::xform.L2W_Point": {
+    "brief": "把一个点从发射器局部空间搬到世界空间，只做平移。只要输入是原点，语料写的就是它而不是带旋转的那个，因为旋转零向量等同于不变。"
+  },
+  "stdlib/xform::xform.L2W_PointRot": {
+    "brief": "把点移出发射器局部空间，并同时旋转 —— 这是出生位置的常规掩码。"
+  },
+  "stdlib/xform::xform.L2W_Dir": {
+    "brief": "把方向移出发射器局部空间 —— 只旋转，绝不平移。"
+  },
+  "stdlib/xform::xform.W2L_Dir": {
+    "brief": "把方向从世界空间带回发射器局部空间。"
+  },
+  "stdlib/xform::xform.W2L_Point": {
+    "brief": "把点从世界空间带回发射器局部空间 —— 形状采样器就是要这个方向的输入。"
+  },
+  "stdlib/xform::xform.W2L_PointPrev": {
+    "brief": "与 `W2L_Point` 相同，但两边都采用上一帧的变换 —— 逐帧增量就是这个形状。这是语料中唯一设置 Prev 位的掩码。"
+  },
+  "stdlib/xform::xform.W2W_PointFromPrev": {
+    "brief": "把一个点从上一帧的世界空间带到这一帧的世界空间：把发射器在这一帧中的运动施加到它身上。粒子就是这样跟随移动的发射器的。"
+  },
+  "stdlib/xform::xform.L2W_PointScaled": {
+    "brief": "把一个点移出发射器局部空间，同时旋转并缩放它：随发射器一起缩放的图层的出生位置。"
+  },
+  "stdlib/xform::xform.W2L_PointTranslate": {
+    "brief": "把一个点从世界空间移到发射器局部空间，只做平移：`L2W_Point` 的逆。"
+  },
+  "stdlib/popcorn::popcorn.EventMultiplier": {
+    "brief": "PopcornFX 的 `EventMultiplier`：一个根图层，在这一帧中触发 `__e_Child` `_t_Count` 次（按每秒速率则为 `scene.dt * rate`），效果停止时死亡。",
+    "param": {
+      "_t_Count": "这一帧触发多少个：按每秒速率则为 `scene.dt * rate`。",
+      "_t_Life": "图层的寿命，单位为秒；`inf` 表示活到效果停止。"
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEventMultiplier": {
+    "brief": "按单位的发射速率倍数缩放速率的 `EventMultiplier`：一个根图层，倍数为 1 时每秒触发 `__e_Child` `_t_Rate` 次，效果停止时死亡。",
+    "param": {
+      "_t_Rate": "发射速率倍数为 1 时每秒触发多少个。",
+      "_t_Life": "图层的寿命，单位为秒；`inf` 表示活到效果停止。"
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_09e45c63": {
+    "brief": "一个根图层，在这一帧中触发 `__e_Child` `_t_Count` 次，效果停止时死亡：来自游戏自有库模板的 `EventMultiplier` 程序。",
+    "param": {
+      "_t_Count": "这一帧触发多少个：按每秒速率则为 `scene.dt * rate`。",
+      "_t_Life": "图层的寿命，单位为秒；`inf` 表示活到效果停止。"
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_09e45c63": {
+    "brief": "一个根图层，发射速率倍数为 1 时每秒触发 `__e_Child` `_t_Rate` 次，效果停止时死亡：按单位的发射速率倍数缩放速率的 `Emitter_09e45c63`。",
+    "param": {
+      "_t_Rate": "发射速率倍数为 1 时每秒触发多少个。",
+      "_t_Life": "图层的寿命，单位为秒；`inf` 表示活到效果停止。"
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_23a77ec7": {
+    "brief": "一个根图层，在这一帧中触发 `__e_Child` `_t_Count` 次，效果停止时死亡：来自游戏自有库模板的 `EventMultiplier` 程序，其次数通常跟随单位的发射速率倍数。",
+    "param": {
+      "_t_Count": "这一帧触发多少个，通常为 `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`。",
+      "_t_Life": "图层的寿命，单位为秒；`inf` 表示活到效果停止。"
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_23a77ec7": {
+    "brief": "一个根图层，发射速率倍数为 1 时每秒触发 `__e_Child` `_t_Rate` 次，效果停止时死亡：采用其通常的次数、跟随单位发射速率倍数的 `Emitter_23a77ec7`。",
+    "param": {
+      "_t_Rate": "发射速率倍数为 1 时每秒触发多少个。",
+      "_t_Life": "图层的寿命，单位为秒；`inf` 表示活到效果停止。"
+    }
+  },
+  "stdlib/popcorn::popcorn.InfiniteLife": {
+    "brief": "带默认一秒 `DeathDelay` 的 PopcornFX `InfiniteLife`，放在它自己的根图层上：活到效果停止，并在一秒后死亡。"
+  },
+  "stdlib/popcorn::popcorn.StopTimer_4f9baf59": {
+    "brief": "一个活到效果停止、并在停止后的第一帧死亡的根图层，来自游戏自有库的停止计时器模板（无延迟的 `InfiniteLife`）。"
+  },
+  "stdlib/physics::physics.velocity_between": {
+    "brief": "这一帧把粒子从 `previous` 带到 `current` 的速度：两者之差除以帧长；帧长为零时为零，此时没有可除的运动。",
+    "param": {
+      "previous": "粒子在本帧开始时的位置。",
+      "current": "它现在的位置。"
+    },
+    "result": "速度，每秒。"
+  },
+  "stdlib/life::life.intro_loop_time": {
+    "brief": "对于在 `birth` 出生的粒子，在 `scene.time` 秒时要采样的曲线位置：在前 `intro` 秒内走完曲线的前 `intro_share` 部分，之后每隔 `loop_seconds` 循环其余部分。",
+    "param": {
+      "birth": "粒子出生的时间（在 `init` 中保存的 `scene.time`）。",
+      "intro": "曲线第一部分只播放一次所用的秒数。",
+      "intro_share": "这第一部分占曲线的比例，从 0 到 1。",
+      "loop_seconds": "在曲线其余部分循环一次所用的时长。"
+    },
+    "result": "曲线的参数，从 0 到 1。"
+  }
+}

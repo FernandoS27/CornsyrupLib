@@ -1,0 +1,100 @@
+// stdlib/spawn.cfx — the generate → initPayload → appendPayload → kick emission chain, packaged.
+//
+// Superseded by the `E.emit(gen) { Name = value; … }` block (CFX_GUIDE §12.1), which names each
+// element by its declaration instead of by index and is what `decompile` writes; these stay for the
+// bundles that call them.
+//
+// Shapes (verified against `function_signatures.json` and decompiled corpus code):
+//
+//   generate(accum, …)                    -> i32x3   the frame's spawn state (carry, total, key)
+//   evt.initPayload(key, gen)             -> i32     an opaque payload KEY
+//   buildPayloadElement(gen, prev, cur, f)-> i32     an opaque element HANDLE
+//   evt.appendPayload(key, index, elem)   -> i32     a NEW key — the chain is THREADED
+//   evt.kick(key)                                    fires with the LAST key
+//
+// Two things trip people up: `appendPayload` takes the element INDEX before the element, and it
+// RETURNS the key to use next. Passing the original key to `kick` drops every appended element.
+//
+// `index` is the element's position in that event's `events.cfx` declaration and is load-bearing
+// (CFX_GUIDE §7.3), so every helper here takes it explicitly.
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+namespace spawn {
+
+    /// @brief Fire `evt` with a spawn count and no per-child payload — the plainest emission there is.
+    ///
+    /// @param evt The event to fire.
+    /// @param gen This frame's spawn state, straight from `generate` — carry, total and key.
+    fn emit(evt: particleEvent, gen: i32x3) {
+        let key : i32 = evt.initPayload(0, gen);
+        evt.kick(key);
+    }
+
+    /// @brief Fire `evt` carrying one payload element. Build the element with `buildPayloadElement` first.
+    ///
+    /// @param evt The event to fire.
+    /// @param gen This frame's spawn state, straight from `generate`.
+    /// @param elem The element handle to carry.
+    /// @param index The element's position in that event's `events.cfx` declaration. Load-bearing — a wrong index is silent, not an error.
+    /// @param channel The emission's cache key, `initPayload`'s first argument: the event's place among the layer's events, unless the layer sends it more than once a frame.
+    fn emit_1(evt: particleEvent, gen: i32x3, elem: i32, index: i32 = 0, channel: i32 = 0) {
+        let k0 : i32 = evt.initPayload(channel, gen);
+        let k1 : i32 = evt.appendPayload(k0, index, elem);
+        evt.kick(k1);
+    }
+
+    /// @brief Fire `evt` carrying two payload elements, threading the key through both appends — passing the original key to `kick` would drop them both.
+    ///
+    /// @param evt The event to fire.
+    /// @param gen This frame's spawn state, straight from `generate`.
+    /// @param elem0 The first element handle.
+    /// @param elem1 The second element handle.
+    /// @param index0 Where the first element sits in the event's declaration.
+    /// @param index1 Where the second element sits in the event's declaration.
+    /// @param channel The emission's cache key, `initPayload`'s first argument: the event's place among the layer's events, unless the layer sends it more than once a frame.
+    fn emit_2(
+        evt: particleEvent,
+        gen: i32x3,
+        elem0: i32,
+        elem1: i32,
+        index0: i32 = 0,
+        index1: i32 = 1,
+        channel: i32 = 0,
+    ) {
+        let k0 : i32 = evt.initPayload(channel, gen);
+        let k1 : i32 = evt.appendPayload(k0, index0, elem0);
+        let k2 : i32 = evt.appendPayload(k1, index1, elem1);
+        evt.kick(k2);
+    }
+
+    /// @brief Fire `evt` carrying three payload elements, threading the key through all three appends.
+    ///
+    /// @param evt The event to fire.
+    /// @param gen This frame's spawn state, straight from `generate`.
+    /// @param elem0 The first element handle.
+    /// @param elem1 The second element handle.
+    /// @param elem2 The third element handle.
+    /// @param index0 Where the first element sits in the event's declaration.
+    /// @param index1 Where the second element sits in the event's declaration.
+    /// @param index2 Where the third element sits in the event's declaration.
+    /// @param channel The emission's cache key, `initPayload`'s first argument: the event's place among the layer's events, unless the layer sends it more than once a frame.
+    fn emit_3(
+        evt: particleEvent,
+        gen: i32x3,
+        elem0: i32,
+        elem1: i32,
+        elem2: i32,
+        index0: i32 = 0,
+        index1: i32 = 1,
+        index2: i32 = 2,
+        channel: i32 = 0,
+    ) {
+        let k0 : i32 = evt.initPayload(channel, gen);
+        let k1 : i32 = evt.appendPayload(k0, index0, elem0);
+        let k2 : i32 = evt.appendPayload(k1, index1, elem1);
+        let k3 : i32 = evt.appendPayload(k2, index2, elem2);
+        evt.kick(k3);
+    }
+}

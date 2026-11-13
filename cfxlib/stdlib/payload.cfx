@@ -1,0 +1,136 @@
+// stdlib/payload.cfx — the packed semantic word that every `buildPayloadElement` call ends with,
+// and the seed of the emission accumulator that `generate` reads (`ACCUM_SEED`, at the end).
+//
+// The trailing `int` argument of `buildPayloadElement` / `buildPayloadElementD` is NOT a bitmask of
+// independent flags. It is two byte-fields packed into one word, and the engine spells the packing
+// out itself (`Warcraft IIId.exe`, `PopcornFX::SPayloadElementView`):
+//
+//     PackSemantics(kind, lerp)  @0x143a322e0  ->  (kind << 8) | (lerp & 0xFF)
+//     UnpackLerpSemantic(p)      @0x143a8cf70  ->  p & 0xFF
+//     UnpackKind(p)              @0x143ede4b0  ->  (p >> 8) & 0xFF
+//
+// The compiler emits it as a LITERAL: the argument is registered with `Attribute_None` while every
+// other argument is `Attribute_Stream` (`ParticleScript::DeclareEvents` @0x143ada190), so it is a
+// uniform and can never be a computed per-particle value. The nodegraph frontend builds it in
+// `_AppendPayloadImpl` @0x1439e3ec0 and drops it in as a constant AST node.
+//
+// Everything here folds at build time, so naming a value costs nothing: `PackSemantics` compiles to
+// the same single int constant the baker wrote. That is the point — `768` in a decompiled blob is
+// unreadable, `PackSemantics(Lerp.None, EKind.EmittedCount)` says what the engine will do with it.
+//
+// The four values the WC3 corpus actually contains:
+//
+//     0    Generic       / None            an unlerped payload element
+//     1    Generic       / VectorLinear    interpolated between the two spawn frames
+//     258  Position      / VectorCubic     0x102 — a spawn position, cubic-interpolated
+//     768  EmittedCount  / None            0x300 — the per-child index, never lerped
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+namespace payloads {
+
+    // --- low byte: SPayloadElementView::ELerpSemantic ----------------------------------------
+    //
+    // Drives `sourceCount` in `_FnBuildPayloadElementD_Impl_*`: how many source frames the engine
+    // reads to produce one child's value. `VectorCubic` is the ONLY mode that keeps the `ad`/`bd`
+    // derivative streams of the `buildPayloadElementD` form; the others discard them.
+    //
+    // The runtime also DEMOTES: when `payloadA` and `payloadB` are the same storage and the mode is
+    // not `VectorCubic`, it forces `None` and reads one frame. So `None` with two distinct payload
+    // arguments is not a way to pick the first one — it is an assertion failure in a debug engine.
+    //
+    // The derivative arguments are not the tangents. PopcornFX's `EventPayloadAppendInterp` with
+    // `Interpolation = Cubic` bakes `TangentStart`/`TangentEnd` to each tangent MINUS the chord:
+    //
+    //     buildPayloadElementD(gen, a, b, tangentA - (b - a), tangentB - (b - a), Lerp.VectorCubic)
+    //
+    // (harness probe `stdlib_cubic`), so a cubic element written from a node's tangents subtracts
+    // `b - a` from both.
+    namespace Lerp {
+
+        /// @brief One source frame: the child gets the value as it was, with no interpolation.
+        const None             : i32 = 0;   // one source frame
+
+        /// @brief Two frames, blended componentwise — the child's value lands between the two spawn frames.
+        const VectorLinear     : i32 = 1;   // two frames, componentwise lerp
+
+        /// @brief Four sources — both frames and both derivatives. The only mode that keeps the derivative streams of the `buildPayloadElementD` form; every other mode discards them.
+        const VectorCubic      : i32 = 2;   // four sources (a, b + both derivatives)
+
+        /// @brief Two frames blended as a normalized quaternion — the cheap rotation blend, which takes the shorter path but not at constant speed.
+        const QuaternionNlerp  : i32 = 3;   // two frames, normalized lerp
+
+        /// @brief Two frames blended along the great circle — constant angular speed, at more cost than the normalized form.
+        const QuaternionSlerp  : i32 = 4;   // two frames, spherical lerp
+    }
+
+    // --- high byte: SParticleDeclaration::SEvent::SPayload::EKind ------------------------------
+    //
+    // What the payload element MEANS to the spawn machinery. Every overload re-packs the kind into
+    // the payload cache header (`SEventHeader_PayloadData::m_PackedSemantic`), where the spawn
+    // XForm reads it — that is all `Position` and `Orientation` do.
+    //
+    // `EmittedCount` is the only kind the interpreter itself branches on, and it is wired in
+    // EXACTLY TWO of the thirteen `_FnBuildPayloadElementD_Impl_*` overloads: `int_` and
+    // `TVector_int_1___` — the same scalar int under two spellings. Every other width
+    // (float, float2/3/4, int2/3/4, orientation) nails `isEmittedCount = 0` at compile time; the
+    // quaternion template even instantiates `_BuildEmittedCount_Inline`/`_Deferred` into branches
+    // that can never be taken. So:
+    //
+    //     EKind.EmittedCount on a SCALAR INT element  -> each child gets its running index
+    //     EKind.EmittedCount on anything else         -> stored in the header, otherwise INERT
+    //
+    // Measured by decompiling all thirteen overloads, not inferred from two of them.
+    namespace EKind {
+
+        /// @brief An ordinary payload element with no meaning to the spawn machinery — the right answer for everything that is not a transform or the child index.
+        const Generic      : i32 = 0;
+
+        /// @brief A spawn position. The kind is written into the payload cache header, where the spawn transform reads it.
+        const Position     : i32 = 1;   // Kind_Builtin_XForms_Position
+
+        /// @brief A spawn orientation, handled the same way `Position` is — recorded in the header for the spawn transform.
+        const Orientation  : i32 = 2;   // Kind_Builtin_XForms_Orientation
+
+        /// @brief Each child's running index within the burst. Only ACTS on a scalar int element — on any other width the engine stores the kind and does nothing with it.
+        const EmittedCount : i32 = 3;   // Kind_Builtin_EmittedCount
+    }
+
+    // `kind * 256` rather than a shift: the compiler folds integer `*` and `|` exactly, but leaves
+    // `<<` to the VM (see `const_fold::fold_binop`), and a value that does not fold would put real
+    // arithmetic in front of an argument the engine requires to be a uniform.
+    /// @brief Pack a payload element's interpolation mode and kind into the word `buildPayloadElement` takes as its last argument. NOTE the argument order: `lerp` first, then `kind` — the engine's own `PackSemantics` takes them the other way round.
+    ///
+    /// @param lerp How many source frames the engine reads, from `Lerp`.
+    /// @param kind What the element means to the spawn machinery, from `EKind`. Defaults to `Generic`, which is right for every element that is not a spawn transform or the emitted-count index.
+    ///
+    /// @result The packed word. Folds at build time, so naming the values costs nothing.
+    fn PackSemantics(lerp: i32, kind: i32 = 0) -> i32 { (kind * 256) | lerp }
+
+    // --- the emission accumulator -------------------------------------------------------------
+    //
+    // `generate(accum, …)` carries the fraction of a particle it has not emitted yet from one frame
+    // to the next in lane 0 of an `i32x2` field, as the bits of a float. A rate-driven emitter seeds
+    // that field in `init` with the value every such emitter in the corpus starts from:
+    //
+    //     1065353048 = 0x3F7FFF58 = 0.99999 as a float (1 - 168 * 2^-24), just under 1.0
+    //
+    // Starting that close to one, the first frame that adds anything at all to the carry reaches a
+    // whole particle and emits it — so the first particle comes out on the first tick, not a frame
+    // or more later — while a frame that adds nothing stays below one and emits nothing. Lane 1
+    // starts at 0.
+
+    /// @brief The value a rate-driven emitter's `generate` accumulator starts from: a carry of 0.99999 (the float bits `0x3F7FFF58`, just under one), so the first frame that adds anything emits the first particle.
+    const ACCUM_SEED : i32x2 = #i32x2(1065353048, 0);
+
+    // Not every emitter starts there: the corpus also seeds 0.5 (569 game layers), 1.0, 0.0 and a
+    // few dozen others. `transmute` of a literal folds (`const_fold`), so `seed(0.5)` builds the
+    // very literal `#i32x2(1056964608, 0)`.
+    /// @brief The starting value of a rate-driven emitter's `generate` accumulator, carrying `carry` of a particle into the first frame: lane 0 holds the float's bits, lane 1 is 0. `seed(0.99999)` is `ACCUM_SEED`.
+    ///
+    /// @param carry The part of a particle the carry holds before the first frame. The first particle comes out on the frame the count reaches one.
+    ///
+    /// @result The accumulator's starting value, folded at build time.
+    fn seed(carry: f32) -> i32x2 { i32x2(transmute::<i32>(carry).x, 0) }
+}

@@ -1,0 +1,275 @@
+// stdlib/templates.cfx — prototypes for the declarations every effect repeats.
+//
+// A template is a structural macro over a declaration: `extends` merges the template's members into
+// the child, `takes`/`using` fill the holes, and `build` compiles the merged text. The `.pkb` is
+// exactly what writing the declaration out longhand would have produced — see CFX_GUIDE §14.
+//
+//   import "stdlib/templates.cfx";
+//
+// Every template here was lifted from a real decompiled bundle, so the byte-for-byte claim is
+// checked rather than asserted (`tests/templates.rs`).
+//
+// TWO RULES WORTH KNOWING BEFORE WRITING ONE:
+//
+//   * The child ADDS to the template. A declaration made on both sides is an error, never a silent
+//     override. `init`/`evolve` are the exception: they concatenate, template first.
+//   * MEMBER ORDER IS PRESERVED — the template's, then the child's — and for a `sampler` that order
+//     survives into the .pkb. So a sampler template must carry the LEADING fields and take whatever
+//     varies as a parameter, which is why `SimpleCylinder` below takes its `WorkspacePosition`.
+//     Renderers are immune: `build` re-sorts their properties into the baker's own order.
+//
+// The `_t_` prefix on parameter names is a convention for the reader, not a requirement —
+// substitution matches whole tokens, so a parameter named `rate` renames `rate` and leaves
+// `rateScale` alone.
+
+import "payload.cfx";   // `payloads.ACCUM_SEED` and `payloads.seed`, the carries `EventMultiplier` and `RootLayerTemplate` start from
+import "life.cfx";      // `life.set_lifetime`, which `RootLayerTemplate` sets its unbounded life with
+import "spawn.cfx";     // `spawn.emit`, which the templates kicked their events with before `E.emit(gen)`
+
+// ---------------------------------------------------------------------------------------------
+// Layers
+// ---------------------------------------------------------------------------------------------
+
+/// The root emitter: layer 0 of essentially every WC3 effect.
+///
+/// It carries no particles of its own — it walks an `EventStream` sampler's baked timeline and kicks
+/// one event per entry, which is what the child layers spawn from. `life.set_lifetime(inf)` gives it
+/// an unbounded life, and the closing `select` kills it once the effect stops running or the
+/// timeline is spent. It is written exactly as `decompile` writes the baked layer, so `decompile`
+/// writes that layer as an instance of it.
+///
+/// The stream is a parameter rather than a hard-coded `&sd0`: a sampler handle means nothing in
+/// another bundle, and parameterising it is what makes this reusable at all.
+///
+/// The template DECLARES the event it kicks, `Signal`, rather than taking one the child has to
+/// declare — so extending it needs nothing but the stream.
+/// @brief The root emitter: layer 0 of essentially every WC3 effect. It carries no particles of its own — it walks an `EventStream` sampler's baked timeline and kicks one event per entry, which is what the child layers spawn from.
+///
+/// @param _sd_eventStream The timeline to walk. A parameter rather than a hard-coded handle, because a sampler handle means nothing in another bundle — parameterising it is what makes this reusable at all.
+template layer RootLayerTemplate {
+    takes {
+        "_sd_eventStream" : samplerEventStreamC;
+    }
+    properties {
+        sampler "EventStream" : EventStream = &_sd_eventStream;
+    }
+    event Signal;
+    root;
+    fields {
+        "PrevAge" : f32;
+        "EventAccum" : i32x2;
+    }
+    init {
+        life.set_lifetime(inf);
+        PrevAge = 0.0;
+        EventAccum = payloads.seed(0.0);
+    }
+    evolve {
+        let prevAge : f32 = PrevAge;
+        let age : f32 = effect.age();
+        let eventAccum : i32x2 = EventAccum;
+        let spawnCount : i32x3 = EventStream.generate(eventAccum, prevAge, age, 0.0, scene.dt);
+        PrevAge = age;
+        EventAccum = spawnCount.xy;
+        Signal.emit(spawnCount);
+        let lifeRatio : f32 = self.lifeRatio;
+        let running : bool = effect.isRunning();
+        let duration : f32 = EventStream.duration();
+        self.lifeRatio = select(running & age <= duration, lifeRatio, 1.0);
+    }
+}
+
+/// A rate-driven emitter: kicks `_t_EmissionRate` events per second for `_t_Duration` seconds.
+///
+/// The counterpart to [RootLayerTemplate] for a layer that emits continuously rather than off a
+/// baked timeline. `_t_Duration = inf` runs for the whole effect — `rcp(inf)` const-folds to `0.0`
+/// at build time, so the bytecode is what `self.invLife = 0.0` would have emitted by hand.
+///
+/// The accumulator seed is the corpus's, not zero: `payloads.ACCUM_SEED` (`stdlib/payload.cfx`), a
+/// carry a hair under one, so the first particle emits on the first tick rather than a frame later.
+///
+/// It declares `root;` because the corpus layers it was lifted from do, and a layer built without
+/// one is a different layer. `root` does not merge, so a layer that needs its own payload cannot
+/// extend this — write the emitter out longhand, or split the payload off into its own layer.
+/// @brief A rate-driven emitter: kicks `_t_EmissionRate` events per second for `_t_Duration` seconds. The counterpart to `RootLayerTemplate` for a layer that emits continuously rather than off a baked timeline.
+///
+/// @param _t_EmissionRate How many events to kick per second.
+/// @param _t_Duration How long to keep emitting. `inf` runs for the whole effect — `rcp(inf)` const-folds to 0 at build time, so the bytecode is what an unbounded life would have emitted by hand.
+template layer EventMultiplier {
+    takes {
+        "_t_EmissionRate" : f32;
+        "_t_Duration" : f32 = inf;
+    }
+    properties {
+        NeedsEvolveOnDeath;
+        metaData;
+    }
+    root;
+    event __e_Child;
+    event __e_OnDeath;
+    init {
+        needs {
+            "EventAccum" : i32x2;
+        }
+        self.invLife = rcp(_t_Duration);
+        EventAccum = payloads.ACCUM_SEED;
+    }
+    evolve {
+        needs {
+            "EventAccum" : i32x2;
+        }
+        let running : bool = effect.isRunning();
+        self.kill(lnot(running));
+        let prevAccum : i32x2 = EventAccum;
+        let spawnEvents : i32x3 = generate(prevAccum, scene.dt * _t_EmissionRate, 1.0, 0.0, 1.0);
+        __e_Child.emit(spawnEvents);
+        EventAccum = spawnEvents.xy;
+    }
+}
+
+/// @brief A layer that outlives the effect by one frame, so a trailing event has somewhere to fire from. It counts up a timer once the effect stops running and kills itself when the timer saturates.
+///
+/// @param _ev_Trigger The event this layer declares and leaves for the graph to wire. Named as a parameter so applying the template to an existing layer renames its own event rather than adding a second one beside it.
+template layer TerminationTemplate {
+    takes {
+        "_ev_Trigger" : particleEvent = __e_Trigger;
+    }
+    properties {
+        NeedsEvolveOnDeath;
+    }
+    event _ev_Trigger;
+    root;
+    init {
+        needs {
+            "deathTimer" : f32;
+        }
+        deathTimer = 0.0;
+        self.invLife = 0.0;
+    }
+    evolve {
+        needs {
+            "deathTimer" : f32;
+        }
+        let v1 : f32 = deathTimer;
+        let v2 : bool = effect.isRunning();
+        let v3 : f32 = saturate(v1 + select(lnot(v2), scene.dt, 0.0));
+        self.kill(v3 == 1.0);
+        deathTimer = v3;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Renderers
+// ---------------------------------------------------------------------------------------------
+
+/// The plain textured billboard — by far the most common renderer in the corpus.
+///
+/// `_t_Mode` defaults to the screen-aligned quad; pass it when it differs. Note the child still adds
+/// whatever else it needs (`FlipUVs`, a `Transparent.Type`, a `DrawOrder = N;`): the merge is
+/// additive, so a template does not have to anticipate every variant.
+///
+/// The draw order is the child's to write, not a parameter: the baker writes a renderer's
+/// `DrawOrder` only when it is not 0, and a template line would store 0 in every renderer that kept
+/// the default, a field no baked renderer has.
+/// @brief The plain textured billboard — by far the most common renderer in the corpus. The child still adds whatever else it needs: the merge is additive, so a template does not have to anticipate every variant.
+///
+/// @param _t_Texture The image drawn on the quad.
+/// @param _t_Mode How the quad is turned to face the camera.
+template renderer TexturedBillboard : Billboard {
+    takes {
+        "_t_Texture" : texture;
+        "_t_Mode" : enum = ScreenAligned;
+    }
+    Transparent = true;
+    Diffuse = true;
+    EnableRendering = true;
+    BillboardingMode = _t_Mode;
+    Diffuse.DiffuseMap = _t_Texture;
+}
+
+/// A billboard that fades as it nears scene geometry instead of cutting a hard edge into it.
+///
+/// It faces the screen unless `_t_Mode` says otherwise. An axis mode (`AxisAligned`,
+/// `AxisAlignedSpheroid`, ...) reads the renderer's `Axis0` input, which the child then binds;
+/// without it the quad has no axis to turn around and draws nothing.
+/// @brief A billboard that fades as it nears scene geometry instead of cutting a hard edge into it.
+///
+/// @param _t_Texture The image drawn on the quad.
+/// @param _t_Softness How far from the geometry the fade begins. Larger is softer.
+/// @param _t_Mode How the quad is turned to face the camera.
+template renderer SoftBillboard : Billboard {
+    takes {
+        "_t_Texture" : texture;
+        "_t_Softness" : f32 = 0.5;
+        "_t_Mode" : enum = ScreenAligned;
+    }
+    Transparent = true;
+    Diffuse = true;
+    EnableRendering = true;
+    SoftParticles = true;
+    BillboardingMode = _t_Mode;
+    Diffuse.DiffuseMap = _t_Texture;
+    SoftParticles.SoftnessDistance = _t_Softness;
+}
+
+/// A flipbook billboard. `_t_SubDiv` is `(columns, rows)`, each 1..=64; frames are laid out
+/// row-major with columns varying fastest and frame 0 at the top. The particle picks its frame
+/// through the renderer's `TextureID` input (`"Frame" -> TextureID;` in its `bind`), which the
+/// engine clamps to `frameCount - 1`.
+/// @brief A flipbook billboard. The particle picks its frame through the renderer's `TextureID` input, which the engine clamps to `frameCount - 1`.
+///
+/// @param _t_Texture The image drawn on the quad.
+/// @param _t_SubDiv The grid as `(columns, rows)`, each 1..=64. Frames are laid out row-major with columns varying fastest and frame 0 at the top.
+/// @param _t_Mode How the quad is turned to face the camera.
+/// @param _t_MotionVectors The motion-vector map used to blend between frames. Defaults to the engine's own distort texture.
+template renderer AtlasBillboard : Billboard {
+    takes {
+        "_t_Texture" : texture;
+        "_t_SubDiv" : i32x2;
+        "_t_Mode" : enum = ScreenAligned;
+        "_t_MotionVectors" : texture =
+            "Popcorn/Library/PopcornFXCore/Materials/DefaultTextures/Distort.dds";
+    }
+    Transparent = true;
+    Diffuse = true;
+    EnableRendering = true;
+    Atlas = true;
+    BillboardingMode = _t_Mode;
+    Diffuse.DiffuseMap = _t_Texture;
+    Atlas.Source = 1;
+    Atlas.SubDiv = _t_SubDiv;
+    Atlas.MotionVectorsMap = _t_MotionVectors;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Samplers
+// ---------------------------------------------------------------------------------------------
+
+/// The single-entry event timeline [RootLayerTemplate] reads: one entry at t=0, so the effect emits
+/// once when it starts. This is `sd0` in most bundles.
+/// @brief The single-entry event timeline `RootLayerTemplate` reads: one entry at t = 0, so the effect emits once when it starts. This is `sd0` in most bundles.
+template sampler SingleShot : EventStream {
+    Times = [0];
+}
+
+/// A cylinder spawn volume, solid. For a tube, add `InnerRadius = r;` in the child, before
+/// anything that comes after it in the node (`Height`): the baker writes `InnerRadius` only when it is
+/// not 0, so the template does not write one.
+///
+/// `_t_Position` is the node's editor workspace coordinate. It is a parameter, and it comes FIRST,
+/// because sampler field order survives into the .pkb and a child's fields are appended after the
+/// template's — so anything that has to lead has to come from the template.
+/// @brief A cylinder spawn volume. Its workspace position comes FIRST and is a parameter, because sampler field order survives into the .pkb and a child's fields are appended after the template's — so anything that has to lead has to come from the template.
+///
+/// @param _t_Position The node's editor workspace coordinate. It leads because the field order survives into the .pkb.
+/// @param _t_Radius The cylinder's outer radius.
+template sampler SimpleCylinder : Shape {
+    takes {
+        "_t_Position" : i32x2;
+        "_t_Radius" : f32;
+    }
+    WorkspacePosition = _t_Position;
+    SampleDimensionality = 3;
+    ShapeType = Cylinder;
+    Radius = _t_Radius;
+}

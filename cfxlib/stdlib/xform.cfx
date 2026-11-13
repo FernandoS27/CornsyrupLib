@@ -1,0 +1,141 @@
+// stdlib/xform.cfx — the mask word that every `xform_*_masked` call ends with.
+//
+// There are EIGHT script names — `xform_{l2l,l2w,w2l,w2w}_{f,d}_masked` — and they all bind to ONE
+// implementation (`RegisterForLink_XForm` @0x143d62b90 binds every float3 variant to
+// `_FnXForm_Float3_Masked` @0x143d6de00; the four `_d_` orientation overloads all go to
+// `_FnXForm_Orientation_Masked` @0x143d6fb10). **The name is decoration. The mask is the whole
+// instruction** — which space you leave, which you enter, and what part of the transform applies.
+//
+// Like `buildPayloadElement`'s semantic word, the mask is a UNIFORM: `DeclareXForm` @0x143acbf80
+// registers it `Attribute_None` while the vector and the context are `Attribute_Stream`, so it is
+// always a compile-time literal and can never be computed per particle.
+//
+//     mask = filter | (spaceEnter << 3) | (spaceLeave << 5)
+//
+// (`_FnXForm_Float3_Masked`: `filter = mask & 7; spaceEnter = (mask >> 3) & 3;
+//  spaceLeave = (mask >> 5) & 3`. Seven bits used; nothing above 0x7F is defined.)
+//
+// Every mask in the WC3 + IceEffects corpus, decoded — no leftover bits anywhere:
+//
+//     17  = 0x11  Translate            EmitterLocal     -> World             xform_l2w_f
+//     19  = 0x13  Translate|Rotate     EmitterLocal     -> World             xform_l2w_f
+//     18  = 0x12  Rotate               EmitterLocal     -> World             xform_l2w_d
+//     66  = 0x42  Rotate               World            -> EmitterLocal      xform_w2l_d
+//     67  = 0x43  Translate|Rotate     World            -> EmitterLocal      xform_w2l_f
+//     107 = 0x6B  Translate|Rotate     WorldPrev        -> EmitterLocalPrev  xform_w2l_f
+//
+// The space fields always agree with the name, which is what makes the census a check and not just
+// a list. `107` is the only one that uses the Prev bit, on both sides at once.
+
+namespace xform {
+
+    // --- bits 0..2: ParticleScript::kXFormFilter_* --------------------------------------------
+    //
+    // WHICH PART of the transform applies. This is the only thing separating the `_f_` (point) and
+    // `_d_` (direction) spellings of the same function: a point translates, a direction does not.
+    //
+    // `_FnXForm_Float3_Masked` asserts `(filter & kXFormFilter_Full) != 0` — a mask with no filter
+    // bits is a programming error, not a no-op.
+    //
+    // The orientation overload is stricter still: `_FnXForm_Orientation_Masked` asserts
+    // `(mask & kXFormFilter_Full) == kXFormFilter_Rotate`, so a quaternion may only ever be
+    // rotated — `Rotate` exactly, not `Translate|Rotate`.
+    namespace Filter {
+        /// @brief No part of the transform at all. A mask with no filter bits is a programming error, not a no-op — the engine asserts on it.
+        const None      : i32 = 0;
+        /// @brief Apply the translation. This is the only bit separating the point and direction spellings of the same engine function: a point translates, a direction does not.
+        const Translate : i32 = 1;
+        /// @brief Apply the rotation. A quaternion may only ever be rotated — the orientation overload asserts that this is the WHOLE filter, not merely part of it.
+        const Rotate    : i32 = 2;
+        /// @brief Apply the scale. One corpus mask sets it: `L2W_PointScaled`, the spawn position of a layer that scales with its emitter.
+        const Scale     : i32 = 4;
+        /// @brief The field mask: all three parts. Use it to READ the filter out of a mask. One corpus mask asks for all three at once, `L2W_PointScaled`.
+        const Full      : i32 = 7;   // the field mask, not a mode
+    }
+
+    // --- bits 3..4 (enter) and 5..6 (leave): ParticleScript::kXFormSpace_* ---------------------
+    //
+    // Two bits each, and the bits are meaningful on their own — `kXFormSpaceMask_Space` (2) is
+    // "emitter-local", `kXFormSpaceMask_Prev` (1) is "the PREVIOUS frame's transform". The engine
+    // reads them separately: `localEnter = (mask >> 3) & 2`, `prevEnter = (mask >> 3) & 1`.
+    //
+    // Two consequences fall straight out of that split, and both are load-bearing:
+    //
+    //  * **`l2l` can never do anything.** The work is gated on
+    //    `(!localEnter || !localLeave) && spaceEnter != spaceLeave`, so ANY pair that is local on
+    //    both sides short-circuits to a stream copy — including `EmitterLocal -> EmitterLocalPrev`,
+    //    which is a real transform the engine simply refuses. The corpus contains no `l2l` mask.
+    //  * **Only `l2w` reads the per-particle spawn transform.** `local2world = localEnter &&
+    //    !localLeave` is what enables the `SpawnerFields` payload path (the per-particle
+    //    `Kind_Builtin_XForms_Position` / `_Orientation` streams). Every other direction takes the
+    //    fetch path and gets the emitter's transform BROADCAST to all particles.
+    namespace Space {
+        /// @brief World space — the space everything shares.
+        const World            : i32 = 0;
+        /// @brief World space as it was at the START of this frame. Reading it is how a per-frame delta is built.
+        const WorldPrev        : i32 = 1;
+        /// @brief The emitter's own space. Only the emitter-local → world direction reads the per-particle spawn transform; every other direction gets the emitter's transform broadcast to all particles.
+        const EmitterLocal     : i32 = 2;
+        /// @brief The emitter's space as it was at the start of this frame. Pairing it with `EmitterLocal` is a real transform the engine simply refuses — any pair that is local on both sides short-circuits to a stream copy.
+        const EmitterLocalPrev : i32 = 3;
+        /// @brief Bit 0 of a space field: "the PREVIOUS frame's transform". The engine reads it separately from the locality bit, which is why the two combine freely.
+        const MaskPrev         : i32 = 1;   // bit 0 of a space field
+        /// @brief Bit 1 of a space field: "emitter-local" rather than world.
+        const MaskSpace        : i32 = 2;   // bit 1 of a space field
+        /// @brief Both bits of a space field, for reading one out of a mask rather than building one.
+        const MaskFull         : i32 = 3;
+    }
+
+    /// Build the mask word: what to transform, the space you are leaving, the space you are
+    /// entering.
+    ///
+    /// `enter`/`leave` are named as the ENGINE names them (`spaceEnter` is the source), so
+    /// `xform_l2w` is `enter = EmitterLocal, leave = World`. Both default to `World`, which is the
+    /// half of the pair a `w2l` call leaves alone.
+    ///
+    /// `* 8` / `* 32` rather than shifts: the compiler folds integer `*` and `|` exactly but leaves
+    /// `<<` to the VM, and an argument the engine requires to be a uniform must not carry real
+    /// arithmetic. Same reason as `payloads.PackSemantics`.
+    /// @brief Build the mask word: what to transform, the space you are leaving, the space you are entering. `enter`/`leave` are named as the ENGINE names them, so `xform_l2w` is `enter = EmitterLocal, leave = World`.
+    ///
+    /// @param filter Which part of the transform applies, from `Filter`. A mask with no filter bits is an error.
+    /// @param enter The space being left — the SOURCE, despite the name. Defaults to `World`.
+    /// @param leave The space being entered — the DESTINATION. Defaults to `World`, which is the half a `w2l` call leaves alone.
+    ///
+    /// @result The packed mask word. Folds at build time, so naming the parts costs nothing.
+    fn Mask(filter: i32, enter: i32 = 0, leave: i32 = 0) -> i32 {
+        filter | (enter * 8) | (leave * 32)
+    }
+
+    // --- the nine masks the corpus actually uses -----------------------------------------------
+    //
+    // Named so a call site says what it does. Each is `Mask(...)` folded, so they cost nothing.
+
+    /// Move a POINT out of emitter-local space into world space.
+    /// @brief Move a POINT out of emitter-local space into world space, translating only. The corpus writes this and not the rotating variant wherever the input is the origin, because rotating zero is the identity.
+    const L2W_Point       : i32 = 17;   // Mask(Filter.Translate, Space.EmitterLocal, Space.World)
+    /// Move a point out of emitter-local space, rotating it too.
+    /// @brief Move a point out of emitter-local space, rotating it too — the ordinary spawn-position mask.
+    const L2W_PointRot    : i32 = 19;   // Mask(Translate|Rotate, EmitterLocal, World)
+    /// Move a DIRECTION out of emitter-local space — rotation only, never translated.
+    /// @brief Move a DIRECTION out of emitter-local space — rotation only, never translated.
+    const L2W_Dir         : i32 = 18;   // Mask(Filter.Rotate, Space.EmitterLocal, Space.World)
+    /// Bring a direction from world space into emitter-local space.
+    /// @brief Bring a direction from world space into emitter-local space.
+    const W2L_Dir         : i32 = 66;   // Mask(Filter.Rotate, Space.World, Space.EmitterLocal)
+    /// Bring a point from world space into emitter-local space.
+    /// @brief Bring a point from world space into emitter-local space — the direction a shape sampler wants its input in.
+    const W2L_Point       : i32 = 67;   // Mask(Translate|Rotate, World, EmitterLocal)
+    /// The same, against LAST frame's transforms on both sides — the shape a per-frame delta uses.
+    /// @brief The same as `W2L_Point`, but against LAST frame's transforms on both sides — the shape a per-frame delta uses. The only mask in the corpus that sets the Prev bit.
+    const W2L_PointPrev   : i32 = 107;  // Mask(Translate|Rotate, WorldPrev, EmitterLocalPrev)
+    /// Carry a point from last frame's world space into this frame's.
+    /// @brief Carry a point from LAST frame's world space into this frame's: the emitter's motion over the frame, applied to it. How a particle follows a moving emitter.
+    const W2W_PointFromPrev : i32 = 11; // Mask(Translate|Rotate, WorldPrev, World)
+    /// Move a point out of emitter-local space, rotating and scaling it too.
+    /// @brief Move a point out of emitter-local space, rotating and SCALING it too: the spawn position of a layer that scales with its emitter.
+    const L2W_PointScaled : i32 = 23;   // Mask(Filter.Full, EmitterLocal, World)
+    /// Bring a point from world space into emitter-local space, translating only.
+    /// @brief Bring a point from world space into emitter-local space, translating only: the inverse of `L2W_Point`.
+    const W2L_PointTranslate : i32 = 65; // Mask(Filter.Translate, World, EmitterLocal)
+}

@@ -1,0 +1,155 @@
+import "xform.cfx";
+
+// The masks below are `xform.cfx`'s named constants, not literals. They fold to the same words the
+// baker wrote before anything hashes them, so the signatures these functions define stay matchable
+// against real blobs — see `tests/payload_flags::the_named_corpus_masks_match_their_definitions`.
+//
+// ONE FUNCTION PER MASK, and the mask must be one the baker actually writes. All eight
+// `xform_*_masked` script names bind to a single engine function, so the mask is the only thing that
+// distinguishes them — a function carrying a mask no blob contains describes nothing, and worse, the
+// recognizer's generalized tier (which disregards constants) will match real regions against it and
+// then discard them when the candidate fails to recompile. The masks the WC3 + IceEffects corpus
+// contains, censused off 1742 lifted blobs with `devtools/examples/maskcensus`, are exactly:
+//
+//     17  l2w Translate           -> local_to_world_position_xtrans_only  (+ world_base_position)
+//     19  l2w Translate|Rotate    -> local_to_world_position
+//     18  l2w Rotate              -> local_to_world_direction
+//     67  w2l Translate|Rotate    -> world_to_local_position
+//     66  w2l Rotate              -> world_to_local_direction
+//     107 w2l Translate|Rotate, PREV on both sides -> world_to_local_position_prev
+//     11  w2w Translate|Rotate, from WorldPrev     -> world_prev_to_world_position
+//     23  l2w Translate|Rotate|Scale             -> local_to_world_position_scaled
+//     65  w2l Translate                          -> world_to_local_position_xtrans_only
+//
+// `tests/reconstruct::every_coord_space_function_reconstructs_as_itself` pins that each one comes
+// back as ITSELF; without that a wrong mask reads as "no match", which is indistinguishable from
+// "matched the sibling".
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+namespace coord_space {
+
+    /// @brief Move a POINT out of emitter-local space into world space, translating only. Rotating the origin is the identity, so the baker never pays for a rotate here.
+    ///
+    /// @param local_pos The point, in emitter-local space.
+    ///
+    /// @result The same point in world space.
+    fn local_to_world_position_xtrans_only(local_pos: f32x3) -> f32x3 {
+        // Bound through a TYPED temp on purpose: a call's result type is part of its structural
+        // hash, and `let NAME : T = <call>` is the only syntax that attaches one. That is also the
+        // form the lifter emits for every call in a baked blob, so writing it any other way makes
+        // this function unmatchable against the very code it describes.
+        let world_pos : f32x3 = xform_l2w_f_masked(local_pos, xform.L2W_Point);
+        world_pos
+    }
+
+    /// @brief Move a POINT out of emitter-local space into world space, rotating it as well as translating it — the ordinary case for a spawn position.
+    ///
+    /// @param local_pos The point, in emitter-local space.
+    ///
+    /// @result The same point in world space.
+    fn local_to_world_position(local_pos: f32x3) -> f32x3 {
+        // Bound through a TYPED temp on purpose: a call's result type is part of its structural
+        // hash, and `let NAME : T = <call>` is the only syntax that attaches one. That is also the
+        // form the lifter emits for every call in a baked blob, so writing it any other way makes
+        // this function unmatchable against the very code it describes.
+        let world_pos : f32x3 = xform_l2w_f_masked(local_pos, xform.L2W_PointRot);
+        world_pos
+    }
+
+    /// @brief Move a DIRECTION out of emitter-local space into world space. Rotation only — a direction must never pick up the emitter's translation.
+    ///
+    /// @param local_dir The direction, in emitter-local space.
+    ///
+    /// @result The same direction in world space.
+    fn local_to_world_direction(local_dir: f32x3) -> f32x3 {
+        let world_dir : f32x3 = xform_l2w_d_masked(local_dir, xform.L2W_Dir);
+        world_dir
+    }
+
+    /// @brief Bring a POINT from world space into emitter-local space — the direction a shape sampler wants its input in.
+    ///
+    /// @param world_pos The point, in world space.
+    ///
+    /// @result The same point in emitter-local space.
+    fn world_to_local_position(world_pos: f32x3) -> f32x3 {
+        let local_pos : f32x3 = xform_w2l_f_masked(world_pos, xform.W2L_Point);
+        local_pos
+    }
+
+    /// @brief Bring a DIRECTION from world space into emitter-local space. Rotation only, for the same reason its outward twin translates nothing.
+    ///
+    /// @param world_dir The direction, in world space.
+    ///
+    /// @result The same direction in emitter-local space.
+    fn world_to_local_direction(world_dir: f32x3) -> f32x3 {
+        let local_dir : f32x3 = xform_w2l_d_masked(world_dir, xform.W2L_Dir);
+        local_dir
+    }
+
+    /// @brief A point from LAST frame's world space into LAST frame's emitter-local space — the shape a per-frame delta is built from. The only mask in the corpus that sets the Prev bit, and it sets it on both sides at once.
+    ///
+    /// @param world_pos The point, in last frame's world space.
+    ///
+    /// @result The same point in last frame's emitter-local space.
+    fn world_to_local_position_prev(world_pos: f32x3) -> f32x3 {
+        let local_pos : f32x3 = xform_w2l_f_masked(world_pos, xform.W2L_PointPrev);
+        local_pos
+    }
+
+    /// @brief Carry a POINT from LAST frame's world space into this frame's: the emitter's motion over the frame, applied to it. This is how a particle follows a moving emitter.
+    ///
+    /// @param world_pos The point, in last frame's world space.
+    ///
+    /// @result The same point in this frame's world space.
+    fn world_prev_to_world_position(world_pos: f32x3) -> f32x3 {
+        let moved : f32x3 = xform_w2w_f_masked(world_pos, xform.W2W_PointFromPrev);
+        moved
+    }
+
+    /// @brief Move a POINT out of emitter-local space into world space, rotating and SCALING it as well as translating it: the spawn position of a layer that scales with its emitter.
+    ///
+    /// @param local_pos The point, in emitter-local space.
+    ///
+    /// @result The same point in world space.
+    fn local_to_world_position_scaled(local_pos: f32x3) -> f32x3 {
+        let world_pos : f32x3 = xform_l2w_f_masked(local_pos, xform.L2W_PointScaled);
+        world_pos
+    }
+
+    /// @brief Bring a POINT from world space into emitter-local space, translating only: the inverse of `local_to_world_position_xtrans_only`.
+    ///
+    /// @param world_pos The point, in world space.
+    ///
+    /// @result The same point in emitter-local space.
+    fn world_to_local_position_xtrans_only(world_pos: f32x3) -> f32x3 {
+        let local_pos : f32x3 = xform_w2l_f_masked(world_pos, xform.W2L_PointTranslate);
+        local_pos
+    }
+
+    /// @brief The rotation about the up axis (Z) by `time * degrees_per_second` degrees, as an orientation: how PopcornFX spins a particle's orientation at a constant rate.
+    ///
+    /// @param time How long it has spun, in seconds.
+    /// @param degrees_per_second The spin rate.
+    ///
+    /// @result The rotation, a unit quaternion about Z.
+    fn rotation_about_z(time: f32, degrees_per_second: f32) -> orientation {
+        // 0.008726646 is pi/360: degrees to radians, halved for the quaternion's half-angle. The
+        // baker writes the product with the constant between the two factors.
+        let sc : f32x2 = radians.sincos(time * 0.008726646 * degrees_per_second);
+        transmute::<orientation>(f32x4(0, 0, sc.xy))
+    }
+
+    // Built on the TRANSLATE-ONLY variant, and it has to be: rotating the zero vector is the
+    // identity (`R·0 + T == T`), so the baker never pays for the rotate here — all 65 corpus sites
+    // of this shape are `xform_l2w_f_masked(#f32x3(0,0,0), 17)` and not one is `19`. Routing this
+    // through the rotating `local_to_world_position` gives it a signature no blob contains, which
+    // costs every one of those reconstructions.
+    /// @brief The emitter's origin in world space — where this emitter is right now.
+    ///
+    /// @result The emitter's world position.
+    fn world_base_position() -> f32x3 {
+        local_to_world_position_xtrans_only(#f32x3(0.0, 0.0, 0.0))
+    }
+}

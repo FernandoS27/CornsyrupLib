@@ -1,0 +1,219 @@
+// stdlib/popcorn.cfx — the layers PopcornFX's own templates bake to.
+//
+// A baked effect's layer built from a PopcornFX template keeps the template's fields under a hashed
+// name (`internal_285275af`), the same in every effect that uses it. Each template here is one such
+// family, written exactly as `decompile` writes the longhand layer, with the values that vary from
+// effect to effect taken as parameters. `decompile` writes a layer of a family as an instance
+// (`layer L extends popcorn.EventMultiplier { using { "_t_Count" = scene.dt * 20.0; } }`) only where
+// the instance expands back to the very layer it read, so the rebuild is the same.
+//
+// The `Scaled` emitters are the same families with the count most of the game's emitters have:
+// `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`. Each extends its family's template and
+// binds the attribute itself, so its instance takes only the rate. The merge writes that `attrib`
+// line ahead of the layer's own, the one thing about the layer an instance can move: the engine finds
+// a layer's attributes by name, never by their place in the list.
+//
+// Named after the PopcornFX template where a baked source/effect pair shows which one it is
+// (`PopcornFxWc3/BakedStuff`), and after the field hash where none does: those come from the game's
+// own template library.
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+import "life.cfx";
+import "payload.cfx";   // `payloads.ACCUM_SEED`, the carry the emitters start from
+import "spawn.cfx";     // `spawn.emit`, which the templates kicked `__e_Child` with before `E.emit(gen)`
+
+namespace popcorn {
+
+    /// PopcornFX's `EventMultiplier` (Events.pkfx): a root layer that kicks `__e_Child` at a rate.
+    /// @brief PopcornFX's `EventMultiplier`: a root layer that kicks `__e_Child` `_t_Count` times over the frame (`scene.dt * rate` for a rate per second), and dies when the effect stops.
+    ///
+    /// @param _t_Count How many to kick this frame: `scene.dt * rate` for a rate per second.
+    /// @param _t_Life The layer's life, in seconds; `inf` lives until the effect stops.
+    template layer EventMultiplier {
+        takes {
+            "_t_Count" : f32;
+            "_t_Life" : f32 = inf;
+        }
+        event __e_Child;
+        event __e_OnDeath;
+        root;
+        fields {
+            "internal_285275af" : i32x2;
+        }
+        init {
+            life.set_lifetime(_t_Life);
+            internal_285275af = payloads.ACCUM_SEED;
+        }
+        evolve {
+            let running : bool = effect.isRunning();
+            self.kill(!running);
+            let v1 : i32x2 = internal_285275af;
+            let spawnCount : i32x3 = generate(v1, _t_Count, 1.0, 0.0, 1.0);
+            __e_Child.emit(spawnCount);
+            internal_285275af = spawnCount.xy;
+        }
+    }
+
+    /// `EventMultiplier` at a rate the unit's `EmissionRateMultiplier` scales, as most of the game's
+    /// emitters are. It binds the attribute itself, so a layer extending it needs no `attrib` line,
+    /// and an effect that does not declare `Game.EmissionRateMultiplier` has it declared by the build.
+    /// @brief `EventMultiplier` at a rate the unit's emission rate multiplier scales: a root layer that kicks `__e_Child` `_t_Rate` times a second at a multiplier of 1, and dies when the effect stops.
+    ///
+    /// @param _t_Rate How many to kick a second at an emission rate multiplier of 1.
+    /// @param _t_Life The layer's life, in seconds; `inf` lives until the effect stops.
+    template layer ScaledEventMultiplier extends EventMultiplier {
+        takes {
+            "_t_Rate" : f32;
+            "_t_Life" : f32 = inf;
+        }
+        using {
+            "_t_Count" = scene.dt * (Wc3.Attributes.EmissionRateMultiplier * _t_Rate);
+        }
+        properties {
+            attrib "__a_Game.EmissionRateMultiplier";
+        }
+    }
+
+    /// The game's emitter with the field `internal_09e45c63`: `EventMultiplier`'s program under
+    /// another template's field.
+    /// @brief A root layer that kicks `__e_Child` `_t_Count` times over the frame and dies when the effect stops: `EventMultiplier`'s program, from a template of the game's own library.
+    ///
+    /// @param _t_Count How many to kick this frame: `scene.dt * rate` for a rate per second.
+    /// @param _t_Life The layer's life, in seconds; `inf` lives until the effect stops.
+    template layer Emitter_09e45c63 {
+        takes {
+            "_t_Count" : f32;
+            "_t_Life" : f32 = inf;
+        }
+        event __e_Child;
+        event __e_OnDeath;
+        root;
+        fields {
+            "internal_09e45c63" : i32x2;
+        }
+        init {
+            life.set_lifetime(_t_Life);
+            internal_09e45c63 = payloads.ACCUM_SEED;
+        }
+        evolve {
+            let running : bool = effect.isRunning();
+            self.kill(!running);
+            let v1 : i32x2 = internal_09e45c63;
+            let spawnCount : i32x3 = generate(v1, _t_Count, 1.0, 0.0, 1.0);
+            __e_Child.emit(spawnCount);
+            internal_09e45c63 = spawnCount.xy;
+        }
+    }
+
+    /// `Emitter_09e45c63` at a rate the unit's `EmissionRateMultiplier` scales.
+    /// @brief A root layer that kicks `__e_Child` `_t_Rate` times a second at an emission rate multiplier of 1 and dies when the effect stops: `Emitter_09e45c63` at a rate the unit's emission rate multiplier scales.
+    ///
+    /// @param _t_Rate How many to kick a second at an emission rate multiplier of 1.
+    /// @param _t_Life The layer's life, in seconds; `inf` lives until the effect stops.
+    template layer ScaledEmitter_09e45c63 extends Emitter_09e45c63 {
+        takes {
+            "_t_Rate" : f32;
+            "_t_Life" : f32 = inf;
+        }
+        using {
+            "_t_Count" = scene.dt * (Wc3.Attributes.EmissionRateMultiplier * _t_Rate);
+        }
+        properties {
+            attrib "__a_Game.EmissionRateMultiplier";
+        }
+    }
+
+    /// The game's emitter with the field `internal_23a77ec7`, whose count is usually scaled by the
+    /// unit's `EmissionRateMultiplier`.
+    /// @brief A root layer that kicks `__e_Child` `_t_Count` times over the frame and dies when the effect stops: `EventMultiplier`'s program, from a template of the game's own library whose count usually follows the unit's emission rate multiplier.
+    ///
+    /// @param _t_Count How many to kick this frame, usually `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`.
+    /// @param _t_Life The layer's life, in seconds; `inf` lives until the effect stops.
+    template layer Emitter_23a77ec7 {
+        takes {
+            "_t_Count" : f32;
+            "_t_Life" : f32 = inf;
+        }
+        event __e_Child;
+        event __e_OnDeath;
+        root;
+        fields {
+            "internal_23a77ec7" : i32x2;
+        }
+        init {
+            life.set_lifetime(_t_Life);
+            internal_23a77ec7 = payloads.ACCUM_SEED;
+        }
+        evolve {
+            let running : bool = effect.isRunning();
+            self.kill(!running);
+            let v1 : i32x2 = internal_23a77ec7;
+            let spawnCount : i32x3 = generate(v1, _t_Count, 1.0, 0.0, 1.0);
+            __e_Child.emit(spawnCount);
+            internal_23a77ec7 = spawnCount.xy;
+        }
+    }
+
+    /// `Emitter_23a77ec7` at a rate the unit's `EmissionRateMultiplier` scales, as that template's
+    /// count usually is.
+    /// @brief A root layer that kicks `__e_Child` `_t_Rate` times a second at an emission rate multiplier of 1 and dies when the effect stops: `Emitter_23a77ec7` with the count it usually has, following the unit's emission rate multiplier.
+    ///
+    /// @param _t_Rate How many to kick a second at an emission rate multiplier of 1.
+    /// @param _t_Life The layer's life, in seconds; `inf` lives until the effect stops.
+    template layer ScaledEmitter_23a77ec7 extends Emitter_23a77ec7 {
+        takes {
+            "_t_Rate" : f32;
+            "_t_Life" : f32 = inf;
+        }
+        using {
+            "_t_Count" = scene.dt * (Wc3.Attributes.EmissionRateMultiplier * _t_Rate);
+        }
+        properties {
+            attrib "__a_Game.EmissionRateMultiplier";
+        }
+    }
+
+    /// PopcornFX's `InfiniteLife` (Utils.pkfx) with its default `DeathDelay` of 1 second, on a root
+    /// layer of its own: it lives until the effect stops, then one more second.
+    /// @brief PopcornFX's `InfiniteLife` with its default one-second `DeathDelay`, on a root layer of its own: it lives until the effect stops, and dies one second later.
+    template layer InfiniteLife {
+        event __e_Trigger;
+        root;
+        fields {
+            "internal_48f679a8" : f32;
+        }
+        init {
+            internal_48f679a8 = 0.0;
+            life.set_lifetime(inf);
+        }
+        evolve {
+            let v1 : f32 = internal_48f679a8;
+            let ratioSinceStop = life.ratio_since_stop(internal_48f679a8);
+            self.kill(ratioSinceStop == 1.0);
+            internal_48f679a8 = ratioSinceStop;
+        }
+    }
+
+    /// The game's stop timer with the field `internal_4f9baf59`, at an infinite rate: the layer dies
+    /// on the first frame the effect is stopped.
+    /// @brief A root layer that lives until the effect stops and dies on the first frame after, from a stop-timer template of the game's own library (`InfiniteLife` with no delay).
+    template layer StopTimer_4f9baf59 {
+        event __e_Trigger;
+        root;
+        fields {
+            "internal_4f9baf59" : f32;
+        }
+        init {
+            internal_4f9baf59 = 0.0;
+            life.set_lifetime(inf);
+        }
+        evolve {
+            let v1 : f32 = internal_4f9baf59;
+            let ratioSinceStop = life.ratio_since_stop(timer = internal_4f9baf59, rate = inf);
+            self.kill(ratioSinceStop == 1.0);
+            internal_4f9baf59 = ratioSinceStop;
+        }
+    }
+}

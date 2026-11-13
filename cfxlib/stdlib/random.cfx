@@ -1,0 +1,64 @@
+// stdlib/random.cfx — random helpers.
+//
+// `rand(lo, hi)` is the engine intrinsic; a newborn gets an independent RandState, so `rand` in an
+// `init` program gives every particle its own values (CFX_GUIDE §9.2).
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+import "math.cfx";
+import "vec.cfx";
+
+namespace random {
+
+    /// @brief A random value in [-amount, +amount] — a symmetric wobble around zero.
+    ///
+    /// @param amount The half-width of the range, either side of zero.
+    ///
+    /// @result A value between `-amount` and `+amount`.
+    fn rand_signed(amount: f32 = 1.0) -> f32 { rand(0.0 - amount, amount) }
+
+    /// @brief A random value around `center`, `spread` either side.
+    ///
+    /// @param center The middle of the range.
+    /// @param spread How far either side of `center` the value may land.
+    ///
+    /// @result A value between `center - spread` and `center + spread`.
+    fn rand_around(center: f32, spread: f32) -> f32 { rand(center - spread, center + spread) }
+
+    /// @brief A random point in an axis-aligned box centred on the origin.
+    ///
+    /// @param half The box's half-extent on each axis.
+    ///
+    /// @result A point inside the box.
+    fn rand_box(half: f32x3) -> f32x3 {
+        #f32x3(rand(0.0 - half.x, half.x), rand(0.0 - half.y, half.y), rand(0.0 - half.z, half.z))
+    }
+
+    /// @brief A random direction in the horizontal plane — x and y, since WC3 is Z-up — with an optional vertical component.
+    ///
+    /// @param z How much to tilt out of the plane, toward +z, before normalizing. 0 stays flat.
+    ///
+    /// @result A unit direction.
+    fn rand_dir_xy(z: f32 = 0.0) -> f32x3 {
+        let a : f32 = rand(0.0, math.TAU);
+        vec.safe_normalize(#f32x3(radians.cos(a), radians.sin(a), z), vec.FORWARD)
+    }
+
+    // `vrand()` is the engine's (`_FnMathsVrand`): a height drawn uniformly in [-1, 1] and an angle
+    // around it, so every direction is equally likely — Archimedes' sphere sampling, one draw.
+    /// @brief A random unit direction, uniform over the sphere — PopcornFX's `vrand()`.
+    ///
+    /// @result A unit direction.
+    fn rand_dir() -> f32x3 {
+        vrand()
+    }
+
+    /// @brief Displace a position by a random offset of at most `amount` on each axis.
+    ///
+    /// @param pos The position to displace.
+    /// @param amount The largest displacement allowed on any one axis.
+    ///
+    /// @result The jittered position.
+    fn jitter(pos: f32x3, amount: f32) -> f32x3 { pos + rand_box(#f32x3(amount, amount, amount)) }
+}

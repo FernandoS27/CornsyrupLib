@@ -1,0 +1,149 @@
+// stdlib/vec.cfx — vector helpers.
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+import "math.cfx";
+
+namespace vec {
+
+    // The axes of the frame the game runs effects in. Every game effect's graph says
+    // `coordsys = (1, 5, 3, 1)`: x is `Axis_Right`, y `Axis_Forward`, z `Axis_Up`
+    // (`PopcornFX::EAbsoluteAxis`), and `CParticleEffect::Load` refuses an effect baked for any other
+    // frame. A CFX literal is already in that frame — `build` converts nothing — so up is +z here,
+    // not the +y of PopcornFX's editor (whose Y-up vectors the baker turns into this frame:
+    // (x, y, z) -> (x, -z, y)).
+
+    /// @brief The world's up axis, +z: WC3 is Z-up. Gravity pulls along `-UP`.
+    const UP      : f32x3 = #f32x3(0, 0, 1);
+
+    /// @brief The forward axis, +y, used as the fallback direction when a vector is too short to normalize.
+    const FORWARD : f32x3 = #f32x3(0, 1, 0);
+
+    /// @brief The rightward axis, +x, completing the right-handed basis with `FORWARD` and `UP`.
+    const RIGHT   : f32x3 = #f32x3(1, 0, 0);
+
+    /// @brief Squared length — cheaper than `length` when you only compare distances, since it skips the square root.
+    ///
+    /// @param v The vector to measure.
+    ///
+    /// @result The dot product of `v` with itself.
+    fn length_sq<V: vec + float>(v: V) -> f32 { dot(v, v) }
+
+    // PopcornFX's script builtin, spelled out the way the baker expands it: `safe_normalize(v, fb, eps)`
+    // bakes to `select(dot(v, v) < eps * eps, fb, v * rsqrt(dot(v, v)))`, with `eps` 1e-12 when it is
+    // left out. The baker never writes a `normalize` or `length` instruction — it expands both into
+    // `rsqrt` and `sqrt` of the dot product — so neither does this module.
+    /// @brief `normalize(v)`, but returns `fallback` for a (near-)zero vector instead of NaN — PopcornFX's `safe_normalize`.
+    ///
+    /// @param v The vector to normalize.
+    /// @param fallback The direction to use when `v` is too short to have one.
+    /// @param epsilon The length below which `v` counts as zero.
+    ///
+    /// @result The unit vector, or `fallback`.
+    fn safe_normalize<V: vec + float>(v: V, fallback: V, epsilon: f32 = 0.000000000001) -> V {
+        let d : f32 = dot(v, v);
+        select(d < epsilon * epsilon, fallback, v * rsqrt(d))
+    }
+
+    // PopcornFX Core's "safe normalize" template, which is not the builtin above: it compares with
+    // `<=`, against a fixed 2.5e-7 squared.
+    /// @brief `normalize(v)`, but `fallback` for a vector shorter than 2.5e-7 — PopcornFX Core's "safe normalize" template, which tests `<=` where the builtin `safe_normalize` tests `<`.
+    ///
+    /// @param v The vector to normalize.
+    /// @param fallback The direction to use when `v` is too short to have one.
+    ///
+    /// @result The unit vector, or `fallback`.
+    fn safe_normalize_template<V: vec + float>(v: V, fallback: V) -> V {
+        let d : f32 = dot(v, v);
+        select(d <= 0.0000000000000625, fallback, v * rsqrt(d))
+    }
+
+    // PopcornFX's script builtins `normalize(v)` and `length(v)`, as the baker expands them (see the
+    // note above): `v * rsqrt(dot(v, v))` and `sqrt(dot(v, v))`.
+    /// @brief `v` scaled to unit length — PopcornFX's `normalize`. NaN for a zero vector; see `safe_normalize`.
+    ///
+    /// @param v The vector to normalize.
+    ///
+    /// @result The unit vector along `v`.
+    fn normalize<V: vec + float>(v: V) -> V {
+        v * rsqrt(dot(v, v))
+    }
+
+    /// @brief The length of `v` — PopcornFX's `length`.
+    ///
+    /// @param v The vector to measure.
+    ///
+    /// @result Its Euclidean length.
+    fn length<V: vec + float>(v: V) -> f32 {
+        sqrt(dot(v, v))
+    }
+
+    /// @brief Distance between two points.
+    ///
+    /// @param a The first point.
+    /// @param b The second point.
+    ///
+    /// @result The distance between them.
+    fn dist<V: vec + float>(a: V, b: V) -> f32 {
+        let d : V = b - a;
+        sqrt(dot(d, d))
+    }
+
+    /// @brief Unit vector pointing from `a` to `b`, or `fallback` when they coincide.
+    ///
+    /// @param a The point to measure from.
+    /// @param b The point to measure toward.
+    /// @param fallback The direction to use when `a` and `b` are the same point.
+    ///
+    /// @result The unit direction from `a` to `b`.
+    fn dir_to<V: vec + float>(a: V, b: V, fallback: V) -> V { safe_normalize(b - a, fallback) }
+
+    /// @brief Projection of `a` onto `b` — the part of `a` that lies along `b`.
+    ///
+    /// @param a The vector being projected.
+    /// @param b The vector projected onto. Need not be unit length.
+    ///
+    /// @result The component of `a` along `b`.
+    fn project<V: vec + float>(a: V, b: V) -> V { b * (dot(a, b) * rcp(dot(b, b))) }
+
+    /// @brief Reflect `v` about a UNIT normal `n`. A non-normalised normal scales the reflection and lets the result drift.
+    ///
+    /// @param v The incoming vector.
+    /// @param n The surface normal, which must be unit length.
+    ///
+    /// @result The reflected vector.
+    fn reflect<V: vec + float>(v: V, n: V) -> V { v - n * (2.0 * dot(v, n)) }
+
+    /// @brief Rebuild a f32x3 with its x lane replaced.
+    ///
+    /// @param v The vector to rebuild.
+    /// @param x The new value for the x lane.
+    ///
+    /// @result The vector with its x lane replaced.
+    fn with_x(v: f32x3, x: f32) -> f32x3 { #f32x3(x, v.y, v.z) }
+
+    /// @brief Rebuild a f32x3 with its y lane replaced.
+    ///
+    /// @param v The vector to rebuild.
+    /// @param y The new value for the y lane.
+    ///
+    /// @result The vector with its y lane replaced.
+    fn with_y(v: f32x3, y: f32) -> f32x3 { #f32x3(v.x, y, v.z) }
+
+    /// @brief Rebuild a f32x3 with its z lane replaced. In WC3's Z-up world that is the height.
+    ///
+    /// @param v The vector to rebuild.
+    /// @param z The new value for the z lane.
+    ///
+    /// @result The vector with its z lane replaced.
+    fn with_z(v: f32x3, z: f32) -> f32x3 { #f32x3(v.x, v.y, z) }
+
+    /// @brief Scale only the horizontal plane, x and y in WC3's Z-up world, leaving height alone — spread a burst outward without lifting it.
+    ///
+    /// @param v The vector to scale.
+    /// @param s The factor applied to x and y.
+    ///
+    /// @result The vector with x and y scaled and z, the height, untouched.
+    fn scale_xy(v: f32x3, s: f32) -> f32x3 { #f32x3(v.x * s, v.y * s, v.z) }
+}

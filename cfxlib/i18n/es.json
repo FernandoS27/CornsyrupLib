@@ -1,0 +1,995 @@
+{
+  "stdlib/color::color.with_alpha": {
+    "brief": "Reemplaza el alfa de un color, dejando el RGB intacto.",
+    "param": {
+      "c": "El color que se reconstruye.",
+      "a": "El nuevo alfa, que sustituye al que tuviera el color."
+    },
+    "result": "El mismo RGB con `a` como alfa."
+  },
+  "stdlib/color::color.fade": {
+    "brief": "Escala el alfa de un color por `k`, dejando el RGB intacto: el modismo del desvanecido. Multiplica en vez de asignar, así que compone: una partícula ya medio transparente por su color de nacimiento se desvanece desde donde está, no desde opaco.",
+    "param": {
+      "c": "El color que se desvanece.",
+      "k": "El factor por el que se multiplica el alfa. 1 lo deja igual, 0 lo vuelve invisible."
+    },
+    "result": "El mismo RGB con su alfa escalado."
+  },
+  "stdlib/color::color.mix": {
+    "brief": "Mezcla entre dos colores, alfa incluido.",
+    "param": {
+      "a": "El color en t = 0.",
+      "b": "El color en t = 1.",
+      "t": "Dónde caer entre ambos. Se satura, así que los valores fuera de [0, 1] se recortan en vez de extrapolar."
+    },
+    "result": "El color mezclado."
+  },
+  "stdlib/color::color.gamma": {
+    "brief": "Corrección gamma aproximada sobre el RGB (el alfa no se toca).",
+    "param": {
+      "c": "El color que se corrige.",
+      "g": "El exponente al que se eleva cada canal RGB. 2.2 es la gamma de pantalla habitual."
+    },
+    "result": "El color corregido, con su alfa tal cual estaba."
+  },
+  "stdlib/color::color.grading": {
+    "brief": "Exposición, luego un desplazamiento de tono/saturación/valor y vuelta a RGB: la cadena estándar de gradación de color.",
+    "param": {
+      "rgba": "El color que se gradúa.",
+      "hsv_offset": "Se suma a la forma HSV: desplazamiento de tono, de saturación, de valor y el desplazamiento de alfa en el último carril.",
+      "exp_exposure": "El multiplicador de exposición, como vector porque así lo guarda el compilador cuando es uniforme. Unos dejan el color igual."
+    },
+    "result": "El color graduado, de vuelta en RGB."
+  },
+  "stdlib/color::color.adjust_hsv": {
+    "brief": "La plantilla `Color` de PopcornFX: desplaza un color en HSV por una constante y por la variación propia de la partícula, sorteada al nacer, y vuelve a RGB.",
+    "param": {
+      "rgba": "El color que se ajusta.",
+      "shift": "El desplazamiento HSV constante: desplazamiento de tono, de saturación, de valor, y 0 en el último carril.",
+      "variation": "El sorteo HSV de la partícula al nacer (`rand(-1, 1) * HSVVariation * 0.5`), guardado en un campo."
+    },
+    "result": "El color ajustado, de vuelta en RGB."
+  },
+  "stdlib/color::color.fade_on_stop": {
+    "brief": "La mitad de color de `FadeOnStop` de PopcornFX: escala cada canal por `1 - time_since_stop`, de modo que la partícula se desvanece mientras corre el temporizador de parada. Pasa el valor del temporizador de antes del `life.ratio_since_stop` de este fotograma.",
+    "param": {
+      "c": "El color que se desvanece.",
+      "time_since_stop": "El temporizador de `FadeOnStop`, 0 mientras el efecto corre."
+    },
+    "result": "El color desvanecido."
+  },
+  "stdlib/easing::easing.ease_in_quad": {
+    "brief": "Acelera desde el reposo: lento al principio y más rápido al final. Cuadrática.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1. Se satura antes, así que lo de fuera se recorta."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/easing::easing.ease_out_quad": {
+    "brief": "Desacelera hasta detenerse: más rápido al principio y lento al final. Cuadrática.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1. Se satura antes, así que lo de fuera se recorta."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/easing::easing.ease_in_cubic": {
+    "brief": "Acelera desde el reposo, con más fuerza que la cuadrática: el arranque es casi plano. Cúbica.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1. Se satura antes, así que lo de fuera se recorta."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/easing::easing.ease_out_cubic": {
+    "brief": "Desacelera hasta detenerse, con más fuerza que la cuadrática: el final es casi plano. Cúbica.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1. Se satura antes, así que lo de fuera se recorta."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/easing::easing.ease_in_out_quad": {
+    "brief": "Acelera desde el reposo y desacelera de vuelta a él, encontrándose a media velocidad en el centro. Cuadrática en ambas mitades.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1. Se satura antes, así que lo de fuera se recorta."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/easing::easing.ease_sine": {
+    "brief": "Suavizado senoidal de entrada y salida: el más suave de los baratos, sin esquina visible en ninguno de los extremos.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1. Se satura antes, así que lo de fuera se recorta."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/easing::easing.pulse": {
+    "brief": "Una joroba 0 → 1 → 0: sube en [0, peak] y baja en [peak, 1]. El clásico aparecer y desaparecer.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1.",
+      "peak": "Dónde la joroba llega a 1. Adelántalo para un destello rápido con una cola larga."
+    },
+    "result": "El valor de la joroba en `t`, de 0 a 1."
+  },
+  "stdlib/easing::easing.fade_out_after": {
+    "brief": "Se mantiene en 1 hasta `hold` y luego se desvanece a 0 en t = 1.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1.",
+      "hold": "Cuánto dura la intensidad plena antes de empezar el desvanecido."
+    },
+    "result": "1 mientras se mantiene y luego cae a 0."
+  },
+  "stdlib/easing::easing.fade_in_out": {
+    "brief": "Entra en rampa hasta `in_end`, se mantiene y sale en rampa desde `out_start`: un trapecio en vez de un pico.",
+    "param": {
+      "t": "La posición normalizada, de 0 a 1.",
+      "in_end": "Dónde termina la rampa de entrada y empieza el sostenimiento.",
+      "out_start": "Dónde acaba el sostenimiento y empieza la rampa de salida."
+    },
+    "result": "El valor del trapecio en `t`, de 0 a 1."
+  },
+  "stdlib/easing::easing.decay": {
+    "brief": "Decaimiento exponencial hacia 0: se reduce a la mitad cada `half_life` y nunca llega del todo a cero.",
+    "param": {
+      "t": "Cuánto se ha avanzado en el decaimiento, en las mismas unidades que `half_life`.",
+      "half_life": "Cuánto tarda el valor en reducirse a la mitad. Cuanto menor, más rápido decae."
+    },
+    "result": "La fracción restante: 1 en t = 0 y acercándose a 0."
+  },
+  "stdlib/events::events.trigger_on_death": {
+    "brief": "El estado de generación de un disparo único que se activa en el tick en que muere esta partícula, y en ningún otro: lo que compila el nodo de evento `SimpleOnDeath` de PopcornFX. Dispáralo tal cual con `spawn.emit`, o abre una carga sobre él con `initPayload` y llénala con los ayudantes `emplace_*`.",
+    "result": "La terna de estado de generación que devuelve `trigger`, como hace `generate` para un ritmo: lo que reciben `initPayload` y `buildPayloadElement`. Vacía en todos los ticks en que la partícula sigue viva."
+  },
+  "stdlib/events::events.emplace_payload": {
+    "brief": "Añade un valor a una carga. Construye `semantic` con `payloads.PackSemantics` en lugar de escribir el número, o el siguiente lector tendrá que descifrarlo a mano.",
+    "param": {
+      "event": "El evento al que pertenece la carga.",
+      "gen": "El estado de generación con el que se abrió la carga (el segundo argumento de `initPayload`).",
+      "key": "La clave de la carga a la que se añade: el resultado de `initPayload` para el primer elemento, el del `emplace_*` anterior para los siguientes.",
+      "index": "La posición del elemento en la declaración del evento. Debe ser un literal, y es determinante: un índice equivocado no da error, simplemente falla en silencio.",
+      "value": "El valor que recibe cada hija generada.",
+      "semantic": "La palabra empaquetada de tipo e interpolación. Debe ser constante en compilación: el motor la registra como uniforme."
+    },
+    "result": "La clave a la que añadir después. Enlázala y dispara (`kick`) la última, o se perderá cada elemento añadido."
+  },
+  "stdlib/events::events.emplace_position": {
+    "brief": "Añade una posición de nacimiento, etiquetada para que la transformación de generación del motor la reconozca: lo que escribe `EventPayloadAppend` de PopcornFX para una carga `XFormsPositions`.",
+    "param": {
+      "event": "El evento al que pertenece la carga.",
+      "gen": "El estado de generación con el que se abrió la carga.",
+      "key": "La clave de la carga a la que se añade.",
+      "index": "La posición del elemento en la declaración del evento.",
+      "position": "Dónde nace la hija."
+    },
+    "result": "La clave a la que añadir después."
+  },
+  "stdlib/events::events.emplace_element": {
+    "brief": "Añade un valor corriente de cualquier anchura, sin significado especial: el caso habitual.",
+    "param": {
+      "event": "El evento al que pertenece la carga.",
+      "gen": "El estado de generación con el que se abrió la carga.",
+      "key": "La clave de la carga a la que se añade.",
+      "index": "La posición del elemento en la declaración del evento.",
+      "value": "El valor que recibe cada hija generada."
+    },
+    "result": "La clave a la que añadir después."
+  },
+  "stdlib/life::life.set_lifetime": {
+    "brief": "Fija la vida de esta partícula, en segundos: lo que hace el nodo `SetLife` de PopcornFX.",
+    "param": {
+      "seconds": "Cuánto vive la partícula. Cero la mata en su primera actualización, como `SetLife` con una vida de 0; pasa `inf` para una partícula que vive hasta que algo la mate."
+    }
+  },
+  "stdlib/life::life.kill_when": {
+    "brief": "Muere cuando `cond` es cierto; en caso contrario conserva la vida actual.",
+    "param": {
+      "cond": "Muere en este tick cuando es cierto. Se evalúa por carril, así que cada partícula responde por sí misma."
+    }
+  },
+  "stdlib/life::life.age_ratio": {
+    "brief": "La edad normalizada de esta partícula.",
+    "result": "0 al nacer y 1 al morir: el valor que gobierna cada desvanecido, rampa de tamaño y curva de color."
+  },
+  "stdlib/life::life.select_texture_id_on_age": {
+    "brief": "Recorre el atlas de un renderizador a lo largo de la vida de la partícula, del primer fotograma al último.",
+    "param": {
+      "local_rend": "El renderizador cuyo `Atlas.SubDiv` da la rejilla. Es un manejador, así que el número de fotogramas se lee de lo que nombró la llamada."
+    },
+    "result": "El fotograma del atlas (base 1) para la edad de esta partícula. Asígnalo al campo `TextureID` de la capa."
+  },
+  "stdlib/life::life.select_texture_id_on_inv_age": {
+    "brief": "Recorre el atlas de un renderizador al revés a lo largo de la vida de la partícula, del último fotograma al primero.",
+    "param": {
+      "local_rend": "El renderizador cuyo `Atlas.SubDiv` da la rejilla. Es un manejador, así que el número de fotogramas se lee de lo que nombró la llamada."
+    },
+    "result": "El fotograma del atlas (base 1) para la vida restante de esta partícula. Asígnalo al campo `TextureID` de la capa."
+  },
+  "stdlib/life::life.ratio_since_stop": {
+    "brief": "Un fotograma del temporizador de parada que llevan las plantillas `InfiniteLife` y `FadeOnStop` de PopcornFX: 0 mientras el efecto corre, y sube hasta 1 a `rate` por segundo una vez detenido. Mata la partícula cuando llega a 1 (`self.kill(t == 1.0)`) y desvanece su color por `1 - t` con `color.fade_on_stop`.",
+    "param": {
+      "timer": "El campo temporizador que añade la plantilla (`LifeRatioSinceStop` / `TimeSinceStop`): 0 al nacer, saturado en 1.",
+      "rate": "Lo rápido que corre una vez detenido, por segundo: `1 / DeathDelay` para `InfiniteLife`, `FadeSpeed` para `FadeOnStop`. `inf` mata en el primer fotograma detenido."
+    },
+    "result": "El nuevo valor del temporizador; guárdalo de vuelta en el campo."
+  },
+  "stdlib/math::math.DEG2RAD": {
+    "brief": "De grados a radianes, como multiplicador. La trigonometría del motor va toda en radianes, así que es por aquí por donde debe pasar un ángulo escrito por una persona."
+  },
+  "stdlib/math::math.RAD2DEG": {
+    "brief": "De radianes a grados, como multiplicador: el camino de vuelta de un ángulo del motor a uno que una persona pueda leer."
+  },
+  "stdlib/math::math.PI": {
+    "brief": "Media vuelta en radianes: la razón entre la circunferencia de un círculo y su diámetro."
+  },
+  "stdlib/math::math.TAU": {
+    "brief": "Una vuelta completa en radianes. `rand(0.0, TAU)` es el modismo para un ángulo aleatorio alrededor de un círculo."
+  },
+  "stdlib/math::math.deg_to_rad": {
+    "brief": "Convierte un ángulo de grados a radianes.",
+    "param": {
+      "d": "El ángulo en grados."
+    },
+    "result": "El mismo ángulo en radianes."
+  },
+  "stdlib/math::math.rad_to_deg": {
+    "brief": "Convierte un ángulo de radianes a grados.",
+    "param": {
+      "r": "El ángulo en radianes."
+    },
+    "result": "El mismo ángulo en grados."
+  },
+  "stdlib/math::math.remap": {
+    "brief": "Transforma `x` del rango [lo, hi] al rango [0, 1]. Se recorta por omisión.",
+    "param": {
+      "x": "El valor que se transforma.",
+      "lo": "El valor que se aplica a 0.",
+      "hi": "El valor que se aplica a 1.",
+      "clamped": "Si el resultado se mantiene dentro de [0, 1]. Falso lo deja salirse por cualquiera de los extremos."
+    },
+    "result": "Dónde cae `x` entre `lo` y `hi`."
+  },
+  "stdlib/math::math.inv_lerp": {
+    "brief": "El lerp inverso sin recortar: dónde cae `x` entre `lo` y `hi`, con permiso para salirse por cualquiera de los extremos.",
+    "param": {
+      "x": "El valor que se transforma.",
+      "lo": "El valor que se aplica a 0.",
+      "hi": "El valor que se aplica a 1."
+    },
+    "result": "La posición sin recortar, que puede quedar por debajo de 0 o por encima de 1."
+  },
+  "stdlib/math::math.remap_range": {
+    "brief": "Transforma `x` de [in_lo, in_hi] a [out_lo, out_hi]: el remapeo general entre dos rangos.",
+    "param": {
+      "x": "El valor que se transforma.",
+      "in_lo": "El valor de entrada que se aplica a `out_lo`.",
+      "in_hi": "El valor de entrada que se aplica a `out_hi`.",
+      "out_lo": "En qué se convierte el extremo bajo.",
+      "out_hi": "En qué se convierte el extremo alto.",
+      "clamped": "Si el resultado se mantiene dentro del rango de salida."
+    },
+    "result": "El valor remapeado."
+  },
+  "stdlib/math::math.clamp01": {
+    "brief": "Mantiene un valor dentro de [0, 1].",
+    "param": {
+      "x": "El valor que se transforma."
+    },
+    "result": "El valor, recortado."
+  },
+  "stdlib/math::math.smoothstep": {
+    "brief": "Suavizado de Hermite sobre [e0, e1]: una rampa cuya pendiente es cero en ambos extremos, así que arranca y se detiene sin una esquina visible.",
+    "param": {
+      "e0": "Donde empieza la rampa.",
+      "e1": "Donde acaba la rampa.",
+      "x": "El valor que se transforma."
+    },
+    "result": "El valor suavizado, de 0 a 1."
+  },
+  "stdlib/math::math.blend": {
+    "brief": "Mezcla lineal, para cualquier escalar o vector de coma flotante. `t` es escalar y se difunde, y NO se recorta: pásalo antes por `clamp01` si puede salirse del rango.",
+    "param": {
+      "a": "El valor en t = 0.",
+      "b": "El valor en t = 1.",
+      "t": "Dónde caer entre ambos."
+    },
+    "result": "El valor mezclado."
+  },
+  "stdlib/math::math.approach": {
+    "brief": "Mueve `cur` hacia `target` según un `rate` saturado: la suavización por fotograma habitual. Depende de la tasa de fotogramas por construcción: multiplica `rate` por `scene.dt` si no quieres que lo haga.",
+    "param": {
+      "cur": "Dónde está el valor ahora.",
+      "target": "Hacia dónde va.",
+      "rate": "Qué parte de la distancia restante se cubre en esta llamada. Se satura, así que 1 llega de golpe."
+    },
+    "result": "El valor tras un paso."
+  },
+  "stdlib/math::math.clamp_to": {
+    "brief": "Recorte componente a componente a [lo, hi], para cualquier escalar o vector de coma flotante.",
+    "param": {
+      "v": "El valor que se recorta.",
+      "lo": "El suelo, por componente.",
+      "hi": "El techo, por componente."
+    },
+    "result": "El valor recortado."
+  },
+  "stdlib/math::math.safe_rcp": {
+    "brief": "`1/x`, o `fallback` cuando `x` es 0: el `rcp(0)` del motor es ±inf y se propaga como NaN. Protege el RESULTADO, no la división: ambas ramas se ejecutan siempre.",
+    "param": {
+      "x": "El valor que se invierte.",
+      "fallback": "Qué responder cuando `x` es exactamente 0."
+    },
+    "result": "El recíproco, o el valor de reserva."
+  },
+  "stdlib/math::math.safe_div": {
+    "brief": "`a/b`, o `fallback` cuando `b` es 0. Protege el RESULTADO, no la división: la división se ejecuta igual y su ±inf se descarta.",
+    "param": {
+      "a": "El numerador.",
+      "b": "El denominador.",
+      "fallback": "Qué responder cuando `b` es exactamente 0."
+    },
+    "result": "El cociente, o el valor de reserva."
+  },
+  "stdlib/math::math.sign_or": {
+    "brief": "`sign(x)`, pero devuelve `zero` exactamente en 0 en lugar de la respuesta propia del motor: para cuando «ninguna dirección» tiene que significar algo concreto.",
+    "param": {
+      "x": "El valor cuyo signo se quiere.",
+      "zero": "Qué responder exactamente en 0."
+    },
+    "result": "-1, `zero` o +1."
+  },
+  "stdlib/math::degrees.sin": {
+    "brief": "El seno de un ángulo dado en grados.",
+    "param": {
+      "x": "El ángulo en grados."
+    },
+    "result": "El seno, de -1 a 1."
+  },
+  "stdlib/math::degrees.cos": {
+    "brief": "El coseno de un ángulo dado en grados.",
+    "param": {
+      "x": "El ángulo en grados."
+    },
+    "result": "El coseno, de -1 a 1."
+  },
+  "stdlib/math::degrees.tan": {
+    "brief": "La tangente de un ángulo dado en grados.",
+    "param": {
+      "x": "El ángulo en grados."
+    },
+    "result": "La tangente, sin cota cerca de 90 grados."
+  },
+  "stdlib/math::degrees.asin": {
+    "brief": "El arcoseno, respondido en grados.",
+    "param": {
+      "x": "La razón de la que se toma la función inversa."
+    },
+    "result": "El ángulo en grados."
+  },
+  "stdlib/math::degrees.acos": {
+    "brief": "El arcocoseno, respondido en grados.",
+    "param": {
+      "x": "La razón de la que se toma la función inversa."
+    },
+    "result": "El ángulo en grados."
+  },
+  "stdlib/math::degrees.atan": {
+    "brief": "El arcotangente, respondido en grados. Usa `atan2` cuando tengas ambos catetos, para que sobreviva el cuadrante.",
+    "param": {
+      "x": "La razón de la que se toma la función inversa."
+    },
+    "result": "El ángulo en grados."
+  },
+  "stdlib/math::degrees.atan2": {
+    "brief": "El ángulo del vector (x, y), respondido en grados sobre el círculo completo: a diferencia de `atan`, se conservan los signos de ambos argumentos, así que sobrevive el cuadrante.",
+    "param": {
+      "y": "El cateto vertical.",
+      "x": "El cateto horizontal."
+    },
+    "result": "El ángulo en grados."
+  },
+  "stdlib/payload::payloads.Lerp.None": {
+    "brief": "Un solo fotograma fuente: la hija recibe el valor tal cual, sin interpolación."
+  },
+  "stdlib/payload::payloads.Lerp.VectorLinear": {
+    "brief": "Dos fotogramas, mezclados componente a componente: el valor de la hija cae entre los dos fotogramas de nacimiento."
+  },
+  "stdlib/payload::payloads.Lerp.VectorCubic": {
+    "brief": "Cuatro fuentes: ambos fotogramas y ambas derivadas. Es el único modo que conserva los flujos de derivadas de la forma `buildPayloadElementD`; los demás los descartan."
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionNlerp": {
+    "brief": "Dos fotogramas mezclados como cuaternión normalizado: la mezcla de rotación barata, que toma el camino corto pero no a velocidad constante."
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionSlerp": {
+    "brief": "Dos fotogramas mezclados a lo largo del círculo máximo: velocidad angular constante, a mayor coste que la forma normalizada."
+  },
+  "stdlib/payload::payloads.EKind.Generic": {
+    "brief": "Un elemento de carga corriente, sin significado para la maquinaria de generación: la respuesta correcta para todo lo que no sea una transformación ni el índice de hija."
+  },
+  "stdlib/payload::payloads.EKind.Position": {
+    "brief": "Una posición de nacimiento. El tipo se escribe en la cabecera de la caché de cargas, de donde lo lee la transformación de generación."
+  },
+  "stdlib/payload::payloads.EKind.Orientation": {
+    "brief": "Una orientación de nacimiento, tratada igual que `Position`: se anota en la cabecera para la transformación de generación."
+  },
+  "stdlib/payload::payloads.EKind.EmittedCount": {
+    "brief": "El índice correlativo de cada hija dentro de la ráfaga. Solo SURTE EFECTO sobre un elemento entero escalar: en cualquier otra anchura el motor guarda el tipo y no hace nada con él."
+  },
+  "stdlib/payload::payloads.PackSemantics": {
+    "brief": "Empaqueta el modo de interpolación y el tipo de un elemento de carga en la palabra que `buildPayloadElement` toma como último argumento. FÍJATE en el orden: primero `lerp` y luego `kind`; el `PackSemantics` del motor los toma al revés.",
+    "param": {
+      "lerp": "Cuántos fotogramas fuente lee el motor, de `Lerp`.",
+      "kind": "Lo que el elemento significa para la maquinaria de generación, de `EKind`. Por omisión es `Generic`, que es lo correcto para todo elemento que no sea una transformación de nacimiento ni el índice de emisión."
+    },
+    "result": "La palabra empaquetada. Se pliega en compilación, así que nombrar los valores no cuesta nada."
+  },
+  "stdlib/payload::payloads.ACCUM_SEED": {
+    "brief": "El valor con el que empieza el acumulador de `generate` de un emisor guiado por tasa: un arrastre de 0.99999 (los bits de float `0x3F7FFF58`, justo por debajo de uno), de modo que el primer fotograma que añade algo emite la primera partícula."
+  },
+  "stdlib/payload::payloads.seed": {
+    "brief": "El valor inicial del acumulador de `generate` de un emisor por tasa, que lleva `carry` de partícula al primer fotograma: el carril 0 guarda los bits del float y el carril 1 es 0. `seed(0.99999)` es `ACCUM_SEED`.",
+    "param": {
+      "carry": "La parte de una partícula que el acumulador guarda antes del primer fotograma. La primera partícula sale en el fotograma en que la cuenta llega a uno."
+    },
+    "result": "El valor inicial del acumulador, plegado al compilar."
+  },
+  "stdlib/physics::physics.integrate/2": {
+    "brief": "Avanza `position` según `velocity` durante un fotograma (Euler explícito). Llámalo ANTES de actualizar la velocidad y obtienes la forma simétrica y estable frente al paso de tiempo; llámalo después y una partícula lanzada se queda corta.",
+    "param": {
+      "position": "La posición de la partícula, actualizada en el sitio.",
+      "velocity": "La velocidad con la que avanzar, por segundo. Nunca la preescales por `scene.dt`: esta función multiplica ella misma por el tiempo de fotograma."
+    }
+  },
+  "stdlib/physics::physics.bounce_floor": {
+    "brief": "Rebota contra un plano horizontal a la altura `height`, conservando `restitution` de la velocidad vertical. Ajusta la partícula al plano en vez de reflejarla a través de él, así que no puede atravesarlo en un fotograma lento. Solo se refleja `z`; el movimiento horizontal no se toca.",
+    "param": {
+      "position": "La posición de la partícula, ajustada al plano cuando está por debajo.",
+      "velocity": "La velocidad de la partícula; su componente vertical se refleja y se escala.",
+      "height": "Dónde está el suelo, en el eje z.",
+      "restitution": "La fracción de velocidad vertical que se conserva al impactar. 1 rebota para siempre, 0 lo detiene en seco."
+    }
+  },
+  "stdlib/physics::physics.integrate/6": {
+    "brief": "Un fotograma de movimiento bajo aceleración constante Y arrastre lineal hacia un campo de viento, resuelto en forma cerrada en vez de por pasos, así que sigue siendo correcto a cualquier tasa de fotogramas. Sin arrastre se reduce al Verlet de velocidades corriente, de modo que es una generalización estricta del caso simple.",
+    "param": {
+      "position": "La posición de la partícula, actualizada en el sitio.",
+      "velocity": "La velocidad de la partícula, actualizada en el sitio.",
+      "acceleration": "Aceleración constante para el fotograma, en unidades/s². La gravedad va aquí como `#f32x3(0, 0, -g)`. NO se divide por `mass`.",
+      "wind": "La velocidad hacia la que se arrastra la partícula. No tiene efecto cuando `drag` es 0.",
+      "mass": "Solo divide a `drag`; las partículas más pesadas se ven menos afectadas por él. Debe ser mayor que 0.",
+      "drag": "El coeficiente de arrastre; `drag/mass` es la tasa de decaimiento en 1/s. 0 es el vacío."
+    }
+  },
+  "stdlib/physics::physics.integrate_in_field": {
+    "brief": "Un fotograma de la plantilla `Physics` de PopcornFX con su entrada de campo vectorial (turbulencia) conectada: aceleración constante más rozamiento lineal hacia una velocidad de campo propia de cada partícula, en forma cerrada.",
+    "param": {
+      "position": "La posición de la partícula, actualizada en el sitio.",
+      "velocity": "La velocidad de la partícula, actualizada en el sitio.",
+      "field": "La velocidad del campo hacia la que se arrastra la partícula, muestreada en la partícula.",
+      "acceleration": "Aceleración constante del fotograma, en unidades/s².",
+      "mass": "Divide solo a `drag`. Debe ser mayor que 0.",
+      "drag": "El coeficiente de rozamiento; `drag/mass` es la tasa de decaimiento en 1/s."
+    }
+  },
+  "stdlib/physics::physics.integrate/3": {
+    "brief": "Movimiento balístico: gravedad constante hacia abajo y nada más. El caso abrumadoramente común del `integrate` completo, escrito aparte porque una gravedad escalar se lee mejor en la llamada que un vector de aceleración. No cuesta nada de más: todo lo que añade es constante, así que se especializa hasta el mismo código.",
+    "param": {
+      "position": "La posición de la partícula, actualizada en el sitio.",
+      "velocity": "La velocidad de la partícula, actualizada en el sitio.",
+      "gravity": "Con cuánta fuerza tira hacia abajo, a lo largo de -z porque WC3 usa Z hacia arriba. Cuanto mayor, más pesado se siente."
+    }
+  },
+  "stdlib/physics::physics.projection": {
+    "brief": "Pega la partícula a la superficie de `shape`: ajusta `position` sobre ella y quita la parte de `velocity` que la atraviesa. La partícula sigue deslizando por la superficie y ni se hunde ni rebota. La superficie se consulta en la posición ACTUAL de la partícula, así que llámalo después de `integrate` y el error será de un fotograma de movimiento.",
+    "param": {
+      "position": "La posición de la partícula, actualizada en el sitio.",
+      "velocity": "La velocidad de la partícula, actualizada en el sitio.",
+      "shape": "La superficie a la que pegarse. Se consulta en su propio espacio LOCAL, así que ambas entradas se transforman hacia dentro y ambos resultados de vuelta hacia fuera."
+    }
+  },
+  "stdlib/physics::physics.bounce_off_scene": {
+    "brief": "Hace rebotar contra la escena el movimiento de un fotograma: lanza un rayo de `previous` a `position` y, donde impacta, refleja `velocity` en la superficie y recorre el resto del fotograma desde el punto de contacto. Escribe el resultado en `new_position` y `new_velocity`, que pueden ser los mismos campos de los que vienen `position` y `velocity`; `physics.collision` es la forma habitual de llamarla.",
+    "param": {
+      "new_position": "Dónde termina la partícula el fotograma: `position` si no impacta.",
+      "new_velocity": "La velocidad de la partícula tras el fotograma: `velocity` si no impacta.",
+      "position": "Dónde dejó la integración a la partícula en este fotograma.",
+      "velocity": "La velocidad de la partícula tras la integración.",
+      "previous": "Dónde estaba la partícula al empezar el fotograma, donde empieza el rayo.",
+      "restitution": "La fracción de la velocidad hacia la superficie que se conserva en el impacto; la misma fracción se pierde a lo largo de la superficie. 1 rebota para siempre, 0 se detiene en seco.",
+      "enabled": "Si hay colisión en este fotograma. Con `false` no se lanza ningún rayo: la partícula atraviesa.",
+      "filter": "El filtro de colisión que recibe la consulta de escena del juego. Todas las colisiones que hornea el juego pasan 0."
+    },
+    "result": "Si la partícula impactó con la escena en este fotograma."
+  },
+  "stdlib/physics::physics.collision/6": {
+    "brief": "Colisiona con la escena, lo que hace la plantilla `Collision` de PopcornFX con `CollideWith` Scene: donde el movimiento del fotograma de `previous` a `position` cruza geometría de la escena, la partícula rebota en el punto de contacto. Llámala después de integrar el fotograma, con dónde estaba la partícula antes.",
+    "param": {
+      "position": "Dónde dejó la integración a la partícula en este fotograma, actualizada en el sitio.",
+      "velocity": "La velocidad de la partícula tras la integración, actualizada en el sitio.",
+      "previous": "Dónde estaba la partícula al empezar el fotograma: su posición antes de integrar.",
+      "restitution": "La fracción de la velocidad hacia la superficie que se conserva en el impacto; la misma fracción se pierde a lo largo de la superficie. 1 rebota para siempre, 0 se detiene en seco.",
+      "enabled": "Si hay colisión en este fotograma. Con `false` la partícula atraviesa.",
+      "filter": "El filtro de colisión que recibe la consulta de escena del juego. Todas las colisiones que hornea el juego pasan 0."
+    }
+  },
+  "stdlib/physics::physics.collision/9": {
+    "brief": "Colisiona con la escena como la otra `collision` y cuenta los rebotes: la partícula muere en el rebote siguiente a `bounces_before_death`, o en su primer contacto con `die_on_contact`, como la mata la plantilla `Collision` de PopcornFX. `bounces` es un campo que guarda la partícula y que empieza en 0.",
+    "param": {
+      "position": "Dónde dejó la integración a la partícula en este fotograma, actualizada en el sitio.",
+      "velocity": "La velocidad de la partícula tras la integración, actualizada en el sitio.",
+      "bounces": "Cuántas veces ha impactado la partícula con la escena, actualizado en el sitio. Guárdalo en un campo que empiece en 0.",
+      "previous": "Dónde estaba la partícula al empezar el fotograma: su posición antes de integrar.",
+      "restitution": "La fracción de la velocidad hacia la superficie que se conserva en el impacto; la misma fracción se pierde a lo largo de la superficie. 1 rebota para siempre, 0 se detiene en seco.",
+      "bounces_before_death": "Cuántos rebotes sobrevive la partícula. 0 no la mata nunca.",
+      "die_on_contact": "Mata la partícula en su primer contacto, diga lo que diga `bounces_before_death`.",
+      "enabled": "Si hay colisión en este fotograma. Con `false` la partícula atraviesa.",
+      "filter": "El filtro de colisión que recibe la consulta de escena del juego. Todas las colisiones que hornea el juego pasan 0."
+    }
+  },
+  "stdlib/physics::physics.spin": {
+    "brief": "Gira un billboard: su ángulo `rotation` avanzado `speed` por segundo durante este fotograma, lo que compila la plantilla `Legacy_Rotation` de PopcornFX con sus valores por defecto. Guárdalo de vuelta: `Rotation = physics.spin(Rotation, speed);`.",
+    "param": {
+      "rotation": "El ángulo de rotación de la partícula.",
+      "speed": "La velocidad de rotación, por segundo. Nunca la preescales por `scene.dt`."
+    },
+    "result": "El ángulo tras este fotograma."
+  },
+  "stdlib/random::random.rand_signed": {
+    "brief": "Un valor aleatorio en [-amount, +amount]: una oscilación simétrica alrededor de cero.",
+    "param": {
+      "amount": "La semiamplitud del rango, a cada lado de cero."
+    },
+    "result": "Un valor entre `-amount` y `+amount`."
+  },
+  "stdlib/random::random.rand_around": {
+    "brief": "Un valor aleatorio en torno a `center`, con `spread` a cada lado.",
+    "param": {
+      "center": "El centro del rango.",
+      "spread": "Cuánto puede alejarse el valor de `center` a cada lado."
+    },
+    "result": "Un valor entre `center - spread` y `center + spread`."
+  },
+  "stdlib/random::random.rand_box": {
+    "brief": "Un punto aleatorio dentro de una caja alineada con los ejes y centrada en el origen.",
+    "param": {
+      "half": "La semiextensión de la caja en cada eje."
+    },
+    "result": "Un punto dentro de la caja."
+  },
+  "stdlib/random::random.rand_dir_xy": {
+    "brief": "Una dirección aleatoria en el plano horizontal (x e y, porque WC3 usa Z hacia arriba), con una componente vertical opcional.",
+    "param": {
+      "z": "Cuánto inclinar fuera del plano, hacia +z, antes de normalizar. 0 se mantiene plano."
+    },
+    "result": "Una dirección unitaria."
+  },
+  "stdlib/random::random.rand_dir": {
+    "brief": "Una dirección unitaria aleatoria, uniforme sobre la esfera: el `vrand()` de PopcornFX.",
+    "result": "Una dirección unitaria."
+  },
+  "stdlib/random::random.jitter": {
+    "brief": "Desplaza una posición con un offset aleatorio de como mucho `amount` en cada eje.",
+    "param": {
+      "pos": "La posición que se desplaza.",
+      "amount": "El mayor desplazamiento permitido en cualquiera de los ejes."
+    },
+    "result": "La posición con el temblor aplicado."
+  },
+  "stdlib/space::coord_space.local_to_world_position_xtrans_only": {
+    "brief": "Lleva un PUNTO del espacio local del emisor al espacio del mundo, solo trasladando. Rotar el origen es la identidad, así que el compilador nunca paga una rotación aquí.",
+    "param": {
+      "local_pos": "El punto, en el espacio local del emisor."
+    },
+    "result": "El mismo punto en el espacio del mundo."
+  },
+  "stdlib/space::coord_space.local_to_world_position": {
+    "brief": "Lleva un PUNTO del espacio local del emisor al del mundo, rotándolo además de trasladarlo: el caso normal de una posición de nacimiento.",
+    "param": {
+      "local_pos": "El punto, en el espacio local del emisor."
+    },
+    "result": "El mismo punto en el espacio del mundo."
+  },
+  "stdlib/space::coord_space.local_to_world_direction": {
+    "brief": "Lleva una DIRECCIÓN del espacio local del emisor al del mundo. Solo rotación: una dirección nunca debe recoger la traslación del emisor.",
+    "param": {
+      "local_dir": "La dirección, en el espacio local del emisor."
+    },
+    "result": "La misma dirección en el espacio del mundo."
+  },
+  "stdlib/space::coord_space.world_to_local_position": {
+    "brief": "Trae un PUNTO del espacio del mundo al espacio local del emisor: el sentido en que un muestreador de forma quiere su entrada.",
+    "param": {
+      "world_pos": "El punto, en el espacio del mundo."
+    },
+    "result": "El mismo punto en el espacio local del emisor."
+  },
+  "stdlib/space::coord_space.world_to_local_direction": {
+    "brief": "Trae una DIRECCIÓN del espacio del mundo al espacio local del emisor. Solo rotación, por la misma razón por la que su gemela hacia fuera no traslada nada.",
+    "param": {
+      "world_dir": "La dirección, en el espacio del mundo."
+    },
+    "result": "La misma dirección en el espacio local del emisor."
+  },
+  "stdlib/space::coord_space.world_to_local_position_prev": {
+    "brief": "Un punto del espacio del mundo del fotograma ANTERIOR al espacio local del emisor de ese mismo fotograma: la forma con la que se construye un delta por fotograma. Es la única máscara del corpus que activa el bit Prev, y lo activa en ambos lados a la vez.",
+    "param": {
+      "world_pos": "El punto, en el espacio del mundo del fotograma anterior."
+    },
+    "result": "El mismo punto en el espacio local del emisor del fotograma anterior."
+  },
+  "stdlib/space::coord_space.world_prev_to_world_position": {
+    "brief": "Lleva un PUNTO del espacio del mundo del fotograma ANTERIOR al de este: el movimiento del emisor durante el fotograma, aplicado a él. Así sigue una partícula a un emisor que se mueve.",
+    "param": {
+      "world_pos": "El punto, en el espacio del mundo del fotograma anterior."
+    },
+    "result": "El mismo punto en el espacio del mundo de este fotograma."
+  },
+  "stdlib/space::coord_space.local_to_world_position_scaled": {
+    "brief": "Lleva un PUNTO del espacio local del emisor al del mundo, rotándolo y ESCALÁNDOLO además de trasladarlo: la posición de nacimiento de una capa que escala con su emisor.",
+    "param": {
+      "local_pos": "El punto, en el espacio local del emisor."
+    },
+    "result": "El mismo punto en el espacio del mundo."
+  },
+  "stdlib/space::coord_space.world_to_local_position_xtrans_only": {
+    "brief": "Lleva un PUNTO del espacio del mundo al espacio local del emisor, solo trasladándolo: la inversa de `local_to_world_position_xtrans_only`.",
+    "param": {
+      "world_pos": "El punto, en el espacio del mundo."
+    },
+    "result": "El mismo punto en el espacio local del emisor."
+  },
+  "stdlib/space::coord_space.rotation_about_z": {
+    "brief": "La rotación alrededor del eje vertical (Z) de `time * degrees_per_second` grados, como orientación: así hace girar PopcornFX la orientación de una partícula a velocidad constante.",
+    "param": {
+      "time": "Cuánto tiempo lleva girando, en segundos.",
+      "degrees_per_second": "La velocidad de giro."
+    },
+    "result": "La rotación, un cuaternión unitario alrededor de Z."
+  },
+  "stdlib/space::coord_space.world_base_position": {
+    "brief": "El origen del emisor en el espacio del mundo: dónde está este emisor ahora mismo.",
+    "result": "La posición del emisor en el mundo."
+  },
+  "stdlib/spawn::spawn.emit": {
+    "brief": "Dispara `evt` con un recuento de nacimientos y sin carga por hija: la emisión más simple que hay.",
+    "param": {
+      "evt": "El evento que se dispara.",
+      "gen": "El estado de generación de este fotograma, tal cual sale de `generate`: acarreo, total y clave."
+    }
+  },
+  "stdlib/spawn::spawn.emit_1": {
+    "brief": "Dispara `evt` llevando un elemento de carga. Constrúyelo antes con `buildPayloadElement`.",
+    "param": {
+      "evt": "El evento que se dispara.",
+      "gen": "El estado de generación de este fotograma, tal cual sale de `generate`.",
+      "elem": "El manejador del elemento que se lleva.",
+      "index": "La posición del elemento en la declaración de ese evento en `events.cfx`. Es determinante: un índice equivocado no da error, simplemente falla en silencio.",
+      "channel": "La clave de caché de la emisión, el primer argumento de `initPayload`: el lugar del evento entre los eventos de la capa, salvo que la capa lo envíe más de una vez por fotograma."
+    }
+  },
+  "stdlib/spawn::spawn.emit_2": {
+    "brief": "Dispara `evt` llevando dos elementos de carga y enlazando la clave a través de ambos añadidos: pasar la clave original a `kick` los perdería los dos.",
+    "param": {
+      "evt": "El evento que se dispara.",
+      "gen": "El estado de generación de este fotograma, tal cual sale de `generate`.",
+      "elem0": "El manejador del primer elemento.",
+      "elem1": "El manejador del segundo elemento.",
+      "index0": "Dónde se sitúa el primer elemento en la declaración del evento.",
+      "index1": "Dónde se sitúa el segundo elemento en la declaración del evento.",
+      "channel": "La clave de caché de la emisión, el primer argumento de `initPayload`: el lugar del evento entre los eventos de la capa, salvo que la capa lo envíe más de una vez por fotograma."
+    }
+  },
+  "stdlib/spawn::spawn.emit_3": {
+    "brief": "Dispara `evt` llevando tres elementos de carga y enlazando la clave a través de los tres añadidos.",
+    "param": {
+      "evt": "El evento que se dispara.",
+      "gen": "El estado de generación de este fotograma, tal cual sale de `generate`.",
+      "elem0": "El manejador del primer elemento.",
+      "elem1": "El manejador del segundo elemento.",
+      "elem2": "El manejador del tercer elemento.",
+      "index0": "Dónde se sitúa el primer elemento en la declaración del evento.",
+      "index1": "Dónde se sitúa el segundo elemento en la declaración del evento.",
+      "index2": "Dónde se sitúa el tercer elemento en la declaración del evento.",
+      "channel": "La clave de caché de la emisión, el primer argumento de `initPayload`: el lugar del evento entre los eventos de la capa, salvo que la capa lo envíe más de una vez por fotograma."
+    }
+  },
+  "stdlib/templates::RootLayerTemplate": {
+    "brief": "El emisor raíz: la capa 0 de prácticamente todo efecto de WC3. No lleva partículas propias: recorre la línea de tiempo cocida de un muestreador `EventStream` y dispara un evento por entrada, que es de donde nacen las capas hijas.",
+    "param": {
+      "_sd_eventStream": "La línea de tiempo que se recorre. Es un parámetro y no un manejador fijo, porque un manejador de muestreador no significa nada en otro paquete: parametrizarlo es lo que lo hace reutilizable."
+    }
+  },
+  "stdlib/templates::EventMultiplier": {
+    "brief": "Un emisor guiado por tasa: dispara `_t_EmissionRate` eventos por segundo durante `_t_Duration` segundos. Es la contraparte de `RootLayerTemplate` para una capa que emite de forma continua en vez de a partir de una línea de tiempo cocida.",
+    "param": {
+      "_t_EmissionRate": "Cuántos eventos se disparan por segundo.",
+      "_t_Duration": "Cuánto tiempo seguir emitiendo. `inf` dura todo el efecto: `rcp(inf)` se pliega a 0 en compilación, así que el bytecode es el que habría dado una vida ilimitada escrita a mano."
+    }
+  },
+  "stdlib/templates::TerminationTemplate": {
+    "brief": "Una capa que sobrevive al efecto un fotograma, para que un evento final tenga desde dónde dispararse. Cuenta un temporizador en cuanto el efecto deja de correr y se mata a sí misma cuando el temporizador se satura.",
+    "param": {
+      "_ev_Trigger": "El evento que esta capa declara y deja para que el grafo lo conecte. Es un parámetro con nombre para que aplicar la plantilla a una capa existente renombre su propio evento en vez de añadir un segundo al lado."
+    }
+  },
+  "stdlib/templates::TexturedBillboard": {
+    "brief": "El cartel texturizado simple: con diferencia el renderizador más común del corpus. La hija aún añade lo que le haga falta: la fusión es aditiva, así que una plantilla no tiene que anticipar cada variante.",
+    "param": {
+      "_t_Texture": "La imagen que se dibuja sobre el cuadrilátero.",
+      "_t_Mode": "Cómo se gira el cuadrilátero para encarar a la cámara."
+    }
+  },
+  "stdlib/templates::SoftBillboard": {
+    "brief": "Un cartel que se desvanece al acercarse a la geometría de la escena en vez de recortar un borde duro contra ella.",
+    "param": {
+      "_t_Texture": "La imagen que se dibuja sobre el cuadrilátero.",
+      "_t_Softness": "A qué distancia de la geometría empieza el desvanecido. Cuanto mayor, más suave.",
+      "_t_Mode": "Cómo se gira el cuadrilátero para encarar a la cámara."
+    }
+  },
+  "stdlib/templates::AtlasBillboard": {
+    "brief": "Un cartel de folioscopio. La partícula elige su fotograma a través de la entrada `TextureID` del renderizador, que el motor recorta a `frameCount - 1`.",
+    "param": {
+      "_t_Texture": "La imagen que se dibuja sobre el cuadrilátero.",
+      "_t_SubDiv": "La rejilla como `(columnas, filas)`, cada una de 1 a 64. Los fotogramas se disponen por filas, variando antes las columnas, con el fotograma 0 arriba.",
+      "_t_Mode": "Cómo se gira el cuadrilátero para encarar a la cámara.",
+      "_t_MotionVectors": "El mapa de vectores de movimiento con el que se mezcla entre fotogramas. Por omisión, la textura de distorsión propia del motor."
+    }
+  },
+  "stdlib/templates::SingleShot": {
+    "brief": "La línea de tiempo de un solo evento que lee `RootLayerTemplate`: una entrada en t = 0, así que el efecto emite una vez al arrancar. Es `sd0` en la mayoría de los paquetes."
+  },
+  "stdlib/templates::SimpleCylinder": {
+    "brief": "Un volumen cilíndrico de nacimiento. Su posición en el espacio de trabajo va PRIMERO y es un parámetro, porque el orden de los campos del muestreador sobrevive hasta el .pkb y los campos de la hija se añaden tras los de la plantilla: así que todo lo que deba ir delante tiene que venir de la plantilla.",
+    "param": {
+      "_t_Position": "La coordenada del nodo en el espacio de trabajo del editor. Va delante porque el orden de los campos sobrevive hasta el .pkb.",
+      "_t_Radius": "El radio exterior del cilindro."
+    }
+  },
+  "stdlib/vec::vec.UP": {
+    "brief": "El eje vertical del mundo, +z: WC3 usa Z hacia arriba. La gravedad tira a lo largo de `-UP`."
+  },
+  "stdlib/vec::vec.FORWARD": {
+    "brief": "El eje de avance, +y, usado como dirección de reserva cuando un vector es demasiado corto para normalizarlo."
+  },
+  "stdlib/vec::vec.RIGHT": {
+    "brief": "El eje hacia la derecha, +x, que completa la base dextrógira junto a `FORWARD` y `UP`."
+  },
+  "stdlib/vec::vec.length_sq": {
+    "brief": "Longitud al cuadrado: más barata que `length` cuando solo comparas distancias, porque se salta la raíz cuadrada.",
+    "param": {
+      "v": "El vector que se mide."
+    },
+    "result": "El producto escalar de `v` consigo mismo."
+  },
+  "stdlib/vec::vec.safe_normalize": {
+    "brief": "`normalize(v)`, pero devuelve `fallback` para un vector (casi) nulo en vez de NaN: el `safe_normalize` de PopcornFX.",
+    "param": {
+      "v": "El vector que se normaliza.",
+      "fallback": "La dirección que se usa cuando `v` es demasiado corto para tener una.",
+      "epsilon": "La longitud por debajo de la cual `v` cuenta como nulo."
+    },
+    "result": "El vector unitario, o `fallback`."
+  },
+  "stdlib/vec::vec.safe_normalize_template": {
+    "brief": "`normalize(v)`, pero `fallback` para un vector más corto que 2.5e-7: la plantilla \"safe normalize\" de PopcornFX Core, que compara con `<=` donde el `safe_normalize` integrado compara con `<`.",
+    "param": {
+      "v": "El vector que se normaliza.",
+      "fallback": "La dirección que se usa cuando `v` es demasiado corto para tener una."
+    },
+    "result": "El vector unitario, o `fallback`."
+  },
+  "stdlib/vec::vec.normalize": {
+    "brief": "`v` escalado a longitud unidad: el `normalize` de PopcornFX. NaN para un vector nulo; véase `safe_normalize`.",
+    "param": {
+      "v": "El vector que se normaliza."
+    },
+    "result": "El vector unitario en la dirección de `v`."
+  },
+  "stdlib/vec::vec.length": {
+    "brief": "La longitud de `v`: el `length` de PopcornFX.",
+    "param": {
+      "v": "El vector que se mide."
+    },
+    "result": "Su longitud euclídea."
+  },
+  "stdlib/vec::vec.dist": {
+    "brief": "Distancia entre dos puntos.",
+    "param": {
+      "a": "El primer punto.",
+      "b": "El segundo punto."
+    },
+    "result": "La distancia entre ambos."
+  },
+  "stdlib/vec::vec.dir_to": {
+    "brief": "Vector unitario que apunta de `a` a `b`, o `fallback` cuando coinciden.",
+    "param": {
+      "a": "El punto desde el que se mide.",
+      "b": "El punto hacia el que se mide.",
+      "fallback": "La dirección que se usa cuando `a` y `b` son el mismo punto."
+    },
+    "result": "La dirección unitaria de `a` a `b`."
+  },
+  "stdlib/vec::vec.project": {
+    "brief": "Proyección de `a` sobre `b`: la parte de `a` que va en la dirección de `b`.",
+    "param": {
+      "a": "El vector que se proyecta.",
+      "b": "El vector sobre el que se proyecta. No hace falta que sea unitario."
+    },
+    "result": "La componente de `a` a lo largo de `b`."
+  },
+  "stdlib/vec::vec.reflect": {
+    "brief": "Refleja `v` respecto a una normal UNITARIA `n`. Una normal sin normalizar escala la reflexión y hace que el resultado se desvíe.",
+    "param": {
+      "v": "El vector entrante.",
+      "n": "La normal de la superficie, que debe ser unitaria."
+    },
+    "result": "El vector reflejado."
+  },
+  "stdlib/vec::vec.with_x": {
+    "brief": "Reconstruye un f32x3 con el carril x sustituido.",
+    "param": {
+      "v": "El vector que se reconstruye.",
+      "x": "El nuevo valor del carril x."
+    },
+    "result": "El vector con el carril x sustituido."
+  },
+  "stdlib/vec::vec.with_y": {
+    "brief": "Reconstruye un f32x3 con el carril y sustituido.",
+    "param": {
+      "v": "El vector que se reconstruye.",
+      "y": "El nuevo valor del carril y."
+    },
+    "result": "El vector con el carril y sustituido."
+  },
+  "stdlib/vec::vec.with_z": {
+    "brief": "Reconstruye un f32x3 con el carril z sustituido. En el mundo Z-arriba de WC3 esa es la altura.",
+    "param": {
+      "v": "El vector que se reconstruye.",
+      "z": "El nuevo valor del carril z."
+    },
+    "result": "El vector con el carril z sustituido."
+  },
+  "stdlib/vec::vec.scale_xy": {
+    "brief": "Escala solo el plano horizontal, x e y en el mundo de WC3 con Z hacia arriba, sin tocar la altura: expande un estallido hacia fuera sin elevarlo.",
+    "param": {
+      "v": "El vector que se escala.",
+      "s": "El factor que se aplica a x e y."
+    },
+    "result": "El vector con x e y escalados y con z, la altura, intacto."
+  },
+  "stdlib/xform::xform.Filter.None": {
+    "brief": "Ninguna parte de la transformación. Una máscara sin bits de filtro es un error de programación, no una operación nula: el motor lanza una aserción."
+  },
+  "stdlib/xform::xform.Filter.Translate": {
+    "brief": "Aplica la traslación. Es el único bit que separa la variante de punto de la de dirección de la misma función del motor: un punto se traslada, una dirección no."
+  },
+  "stdlib/xform::xform.Filter.Rotate": {
+    "brief": "Aplica la rotación. Un cuaternión solo puede rotarse: la sobrecarga de orientación exige que este sea el filtro COMPLETO y no solo una parte."
+  },
+  "stdlib/xform::xform.Filter.Scale": {
+    "brief": "Aplica la escala. Una máscara del corpus la activa: `L2W_PointScaled`, la posición de nacimiento de una capa que escala con su emisor."
+  },
+  "stdlib/xform::xform.Filter.Full": {
+    "brief": "La máscara del campo: las tres partes. Úsala para LEER el filtro de una máscara. Una máscara del corpus pide las tres a la vez, `L2W_PointScaled`."
+  },
+  "stdlib/xform::xform.Space.World": {
+    "brief": "Espacio del mundo: el espacio que todo comparte."
+  },
+  "stdlib/xform::xform.Space.WorldPrev": {
+    "brief": "El espacio del mundo tal como estaba al PRINCIPIO de este fotograma. Leerlo es como se construye un delta por fotograma."
+  },
+  "stdlib/xform::xform.Space.EmitterLocal": {
+    "brief": "El espacio propio del emisor. Solo el sentido local del emisor → mundo lee la transformación de nacimiento por partícula; cualquier otro sentido recibe la transformación del emisor difundida a todas."
+  },
+  "stdlib/xform::xform.Space.EmitterLocalPrev": {
+    "brief": "El espacio del emisor tal como estaba al principio de este fotograma. Emparejarlo con `EmitterLocal` es una transformación real que el motor simplemente rechaza: todo par que sea local por ambos lados se corta a una copia de flujo."
+  },
+  "stdlib/xform::xform.Space.MaskPrev": {
+    "brief": "El bit 0 de un campo de espacio: «la transformación del fotograma ANTERIOR». El motor lo lee aparte del bit de localidad, y por eso ambos se combinan libremente."
+  },
+  "stdlib/xform::xform.Space.MaskSpace": {
+    "brief": "El bit 1 de un campo de espacio: «local del emisor» en vez de mundo."
+  },
+  "stdlib/xform::xform.Space.MaskFull": {
+    "brief": "Ambos bits de un campo de espacio, para leerlo de una máscara en vez de construirlo."
+  },
+  "stdlib/xform::xform.Mask": {
+    "brief": "Construye la palabra de máscara: qué transformar, el espacio del que sales y el espacio al que entras. `enter`/`leave` se llaman como los llama el MOTOR, así que `xform_l2w` es `enter = EmitterLocal, leave = World`.",
+    "param": {
+      "filter": "Qué parte de la transformación se aplica, de `Filter`. Una máscara sin bits de filtro es un error.",
+      "enter": "El espacio que se abandona: el ORIGEN, pese al nombre. Por omisión, `World`.",
+      "leave": "El espacio al que se entra: el DESTINO. Por omisión, `World`, que es la mitad que una llamada `w2l` deja intacta."
+    },
+    "result": "La palabra de máscara empaquetada. Se pliega en compilación, así que nombrar las partes no cuesta nada."
+  },
+  "stdlib/xform::xform.L2W_Point": {
+    "brief": "Lleva un PUNTO del espacio local del emisor al del mundo, solo trasladando. El corpus escribe esta y no la variante que rota siempre que la entrada es el origen, porque rotar el cero es la identidad."
+  },
+  "stdlib/xform::xform.L2W_PointRot": {
+    "brief": "Lleva un punto fuera del espacio local del emisor, rotándolo también: la máscara habitual de posición de nacimiento."
+  },
+  "stdlib/xform::xform.L2W_Dir": {
+    "brief": "Lleva una DIRECCIÓN fuera del espacio local del emisor: solo rotación, nunca traslación."
+  },
+  "stdlib/xform::xform.W2L_Dir": {
+    "brief": "Trae una dirección del espacio del mundo al espacio local del emisor."
+  },
+  "stdlib/xform::xform.W2L_Point": {
+    "brief": "Trae un punto del espacio del mundo al espacio local del emisor: el sentido en que un muestreador de forma quiere su entrada."
+  },
+  "stdlib/xform::xform.W2L_PointPrev": {
+    "brief": "Igual que `W2L_Point`, pero contra las transformaciones del fotograma ANTERIOR por ambos lados: la forma que usa un delta por fotograma. Es la única máscara del corpus que activa el bit Prev."
+  },
+  "stdlib/xform::xform.W2W_PointFromPrev": {
+    "brief": "Lleva un punto del espacio del mundo del fotograma ANTERIOR al de este: el movimiento del emisor durante el fotograma, aplicado a él. Así sigue una partícula a un emisor que se mueve."
+  },
+  "stdlib/xform::xform.L2W_PointScaled": {
+    "brief": "Saca un punto del espacio local del emisor, rotándolo y ESCALÁNDOLO también: la posición de nacimiento de una capa que escala con su emisor."
+  },
+  "stdlib/xform::xform.W2L_PointTranslate": {
+    "brief": "Lleva un punto del espacio del mundo al espacio local del emisor, solo trasladándolo: la inversa de `L2W_Point`."
+  },
+  "stdlib/popcorn::popcorn.EventMultiplier": {
+    "brief": "El `EventMultiplier` de PopcornFX: una capa raíz que dispara `__e_Child` `_t_Count` veces en el fotograma (`scene.dt * rate` para una tasa por segundo) y muere cuando el efecto se detiene.",
+    "param": {
+      "_t_Count": "Cuántos disparar en este fotograma: `scene.dt * rate` para una tasa por segundo.",
+      "_t_Life": "La vida de la capa, en segundos; `inf` vive hasta que el efecto se detiene."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEventMultiplier": {
+    "brief": "`EventMultiplier` a una tasa que escala el multiplicador de emisión de la unidad: una capa raíz que dispara `__e_Child` `_t_Rate` veces por segundo con un multiplicador de 1 y muere cuando el efecto se detiene.",
+    "param": {
+      "_t_Rate": "Cuántos disparar por segundo con un multiplicador de emisión de 1.",
+      "_t_Life": "La vida de la capa, en segundos; `inf` vive hasta que el efecto se detiene."
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_09e45c63": {
+    "brief": "Una capa raíz que dispara `__e_Child` `_t_Count` veces en el fotograma y muere cuando el efecto se detiene: el programa de `EventMultiplier`, de una plantilla de la biblioteca propia del juego.",
+    "param": {
+      "_t_Count": "Cuántos disparar en este fotograma: `scene.dt * rate` para una tasa por segundo.",
+      "_t_Life": "La vida de la capa, en segundos; `inf` vive hasta que el efecto se detiene."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_09e45c63": {
+    "brief": "Una capa raíz que dispara `__e_Child` `_t_Rate` veces por segundo con un multiplicador de emisión de 1 y muere cuando el efecto se detiene: `Emitter_09e45c63` a una tasa que escala el multiplicador de emisión de la unidad.",
+    "param": {
+      "_t_Rate": "Cuántos disparar por segundo con un multiplicador de emisión de 1.",
+      "_t_Life": "La vida de la capa, en segundos; `inf` vive hasta que el efecto se detiene."
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_23a77ec7": {
+    "brief": "Una capa raíz que dispara `__e_Child` `_t_Count` veces en el fotograma y muere cuando el efecto se detiene: el programa de `EventMultiplier`, de una plantilla de la biblioteca propia del juego cuya cantidad suele seguir el multiplicador de emisión de la unidad.",
+    "param": {
+      "_t_Count": "Cuántos disparar en este fotograma, normalmente `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`.",
+      "_t_Life": "La vida de la capa, en segundos; `inf` vive hasta que el efecto se detiene."
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_23a77ec7": {
+    "brief": "Una capa raíz que dispara `__e_Child` `_t_Rate` veces por segundo con un multiplicador de emisión de 1 y muere cuando el efecto se detiene: `Emitter_23a77ec7` con la cantidad que suele tener, que sigue el multiplicador de emisión de la unidad.",
+    "param": {
+      "_t_Rate": "Cuántos disparar por segundo con un multiplicador de emisión de 1.",
+      "_t_Life": "La vida de la capa, en segundos; `inf` vive hasta que el efecto se detiene."
+    }
+  },
+  "stdlib/popcorn::popcorn.InfiniteLife": {
+    "brief": "El `InfiniteLife` de PopcornFX con su `DeathDelay` por defecto de un segundo, en una capa raíz propia: vive hasta que el efecto se detiene y muere un segundo después."
+  },
+  "stdlib/popcorn::popcorn.StopTimer_4f9baf59": {
+    "brief": "Una capa raíz que vive hasta que el efecto se detiene y muere en el primer fotograma posterior, de una plantilla de temporizador de parada de la biblioteca propia del juego (`InfiniteLife` sin retardo)."
+  },
+  "stdlib/physics::physics.velocity_between": {
+    "brief": "La velocidad que llevó a una partícula de `previous` a `current` en este fotograma: su diferencia entre la duración del fotograma, y cero en un fotograma sin duración, donde no hay movimiento que dividir.",
+    "param": {
+      "previous": "Dónde estaba la partícula al empezar el fotograma.",
+      "current": "Dónde está ahora."
+    },
+    "result": "La velocidad, por segundo."
+  },
+  "stdlib/life::life.intro_loop_time": {
+    "brief": "El punto de una curva que muestrear a `scene.time` segundos, para una partícula nacida en `birth`: durante los primeros `intro` segundos recorre la primera parte `intro_share` de la curva, y luego repite el resto cada `loop_seconds`.",
+    "param": {
+      "birth": "Cuándo nació la partícula (`scene.time` guardado en `init`).",
+      "intro": "Cuánto dura, en segundos, la primera parte de la curva, que se reproduce una vez.",
+      "intro_share": "Qué parte de la curva, de 0 a 1, es esa primera parte.",
+      "loop_seconds": "Cuánto dura una vuelta por el resto de la curva."
+    },
+    "result": "El parámetro de la curva, de 0 a 1."
+  }
+}

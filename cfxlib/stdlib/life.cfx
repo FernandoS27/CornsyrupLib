@@ -1,0 +1,127 @@
+// stdlib/life.cfx — particle lifetime control.
+//
+// The engine advances `lifeRatio += dt * invLife` and kills anything at lifeRatio >= 1.0 BEFORE
+// the next script run, so a particle lives for exactly `1 / invLife` seconds. See CFX_GUIDE §9.1.
+//
+// ---------------------------------------------------------------------------------------------
+// DOC COMMENTS ARE ANNOTATED, AND THIS IS THE MODULE THE CONVENTION IS WRITTEN OUT ON.
+//
+// A `///` block is English, with Doxygen's tags:
+//
+//     @brief   one paragraph saying what the function does
+//     @param   <name> what that parameter means
+//     @result  what the call evaluates to
+//
+// Its translations are kept beside the library, in `cfxlib/i18n/<lang>.json`, one file per
+// interface language (es, pt, fr, it, de, ru, zh, ja, ko — the codes Mill stores in its settings
+// file), under `<module>::<name>`: `"stdlib/life::life.set_lifetime": { "brief": …, "param":
+// { "seconds": … }, "result": … }`, and `<name>/<parameter count>` for one of several overloads. A
+// block may also still carry a translation inline, as `@brief_<lang>`.
+//
+// Mill's Library workspace shows the reader's own language, falling back to English **per
+// section**, so a half-translated module is useful rather than blank. A block with no tags at all
+// is unaffected: its prose is read as the brief.
+//
+// Tags are comments. `trivia::blank` erases every comment before the loader scans a module, so
+// none of this reaches the compiler, the bytecode or the `.pkb`.
+// ---------------------------------------------------------------------------------------------
+
+namespace life {
+
+    // The engine stores the reciprocal, `invLife`, and advances `lifeRatio` by `dt * invLife`: so
+    // 0 seconds is an infinite `invLife` and a particle that dies on its first update, and `inf`
+    // seconds is an `invLife` of 0 and a particle that never ages. PopcornFX's `SetLife` node bakes
+    // to the same store (`self.invLife = inf` for a Life of 0, `0` for a Life of infinity).
+    /// @brief Set this particle's lifetime, in seconds — what PopcornFX's `SetLife` node does.
+    ///
+    /// @param seconds How long the particle lives. Zero kills it on its first update, as `SetLife` does with a Life of 0; pass `inf` for a particle that lives until something kills it.
+    fn set_lifetime(seconds: f32) {
+        self.invLife = rcp(seconds);
+    }
+
+    /// @brief Die when `cond` is true, keeping the current lifetime otherwise.
+    ///
+    /// @param cond Killed this tick when true. Evaluated lane-wise, so each particle answers for itself.
+    fn kill_when(cond: bool) {
+        self.kill(cond);
+    }
+
+    /// @brief This particle's normalized age.
+    ///
+    /// @result 0 at birth and 1 at death — the value every fade, size ramp and colour curve is driven by.
+    fn age_ratio() -> f32 {
+        self.lifeRatio
+    }
+
+    /// @brief Walk a renderer's atlas forward over the particle's life, from the first frame to the last.
+    ///
+    /// @param local_rend The renderer whose `Atlas.SubDiv` gives the grid. A handle, so the frame count is read from whatever the call site named.
+    ///
+    /// @result The 1-based atlas frame for this particle's age. Assign it to the layer's `TextureID` field.
+    fn select_texture_id_on_age(local_rend : const &Renderer) {
+        let age : f32 = self.lifeRatio;
+        let factor : f32 = (local_rend.Atlas.SubDiv.x * local_rend.Atlas.SubDiv.y - 1) as f32;
+        factor * age + 1.0
+    }
+
+    /// @brief Walk a renderer's atlas backward over the particle's life, from the last frame to the first.
+    ///
+    /// @param local_rend The renderer whose `Atlas.SubDiv` gives the grid. A handle, so the frame count is read from whatever the call site named.
+    ///
+    /// @result The 1-based atlas frame for this particle's remaining life. Assign it to the layer's `TextureID` field.
+    fn select_texture_id_on_inv_age(local_rend : const &Renderer) {
+        let age : f32 = self.lifeRatio;
+        let factor : f32 = (local_rend.Atlas.SubDiv.x * local_rend.Atlas.SubDiv.y - 1) as f32;
+        factor * (1.0 - age) + 1.0
+    }
+
+    // ─── The stop timer of PopcornFX's `InfiniteLife` and `FadeOnStop` ───────────────────────────
+    //
+    // Two templates bake to this one statement:
+    //
+    //   * `InfiniteLife` (PopcornFXCore/Templates/Utils.pkfx): `SetLife(inf)`, then
+    //         LifeRatioSinceStop = saturate(LifeRatioSinceStop + select(0, scene.dt / DeathDelay, isStopped));
+    //         self.kill(LifeRatioSinceStop == 1);
+    //     The baker folds `1 / DeathDelay` into a constant, which is why the game's rates are reciprocals
+    //     of round durations: 3.030303 (0.33 s), 3.3333333 (0.3 s), 1.4285715 (0.7 s), and `inf` for a
+    //     DeathDelay of 0, "die on the first stopped frame".
+    //   * `FadeOnStop` (the WC3 project's own, Particles/Tutorials/090_EffectStop.pkfx):
+    //         TimeSinceStop = saturate(TimeSinceStop + select(0, scene.dt * FadeSpeed, isStopped));
+    //         self.kill(TimeSinceStop == 1);
+    //     plus `Color * (1 - TimeSinceStop)`, which is `color.fade_on_stop`.
+    //
+    // So the parameter is the RATE, the constant the blob holds; a duration could not be bound from it
+    // (reconstruction binds a region's own literals, and `1 / 0.33` is not `0.33`). The default is
+    // InfiniteLife's DeathDelay of 1 second, a rate of 1: `scene.dt` itself.
+    //
+    // The kill stays outside: `decompile` puts a value function back over the one value it computes,
+    // a region that owns no void call, so with the kill inside the rebuild would kill twice (a
+    // procedure can own one: `physics.collision`'s).
+    /// @brief One frame of the stop timer PopcornFX's `InfiniteLife` and `FadeOnStop` templates keep: 0 while the effect runs, rising to 1 at `rate` per second once it has stopped. Kill the particle when it reaches 1 (`self.kill(t == 1.0)`), and fade its colour by `1 - t` with `color.fade_on_stop`.
+    ///
+    /// @param timer The timer field the template adds (`LifeRatioSinceStop` / `TimeSinceStop`): 0 at spawn, saturated at 1.
+    /// @param rate How fast it runs once stopped, per second: `1 / DeathDelay` for `InfiniteLife`, `FadeSpeed` for `FadeOnStop`. `inf` kills on the first stopped frame.
+    ///
+    /// @result The timer's new value; store it back into the field.
+    fn ratio_since_stop(timer: f32, rate: f32 = 1.0) -> f32 {
+        let running : bool = effect.isRunning();
+        saturate(timer + select(!running, scene.dt * rate, 0.0))
+    }
+
+    // A curve played once through its first part, then looped over the rest: the game's effects
+    // sample a colour or size curve with it. Folded, a call is
+    // `min(age * 0.3, 0.3) + frac(max(time - 1.0 - birth, 0.0) * 0.33333334) * 0.7`.
+    /// @brief The point of a curve to sample `scene.time` seconds into it, for a particle born at `birth`: over the first `intro` seconds it runs through the curve's first `intro_share`, then it loops over the rest every `loop_seconds`.
+    ///
+    /// @param birth When the particle was born (`scene.time` stored in `init`).
+    /// @param intro How long, in seconds, the first part of the curve plays once.
+    /// @param intro_share How much of the curve, from 0 to 1, that first part is.
+    /// @param loop_seconds How long one loop over the rest of the curve takes.
+    ///
+    /// @result The curve's parameter, from 0 to 1.
+    fn intro_loop_time(birth: f32, intro: f32 = 1.0, intro_share: f32 = 0.3, loop_seconds: f32 = 3.0) -> f32 {
+        let time : f32 = scene.time;
+        min((time - birth) * (intro_share * (1.0 / intro)), intro_share)
+            + frac(max(time - intro - birth, 0.0) * (1.0 / loop_seconds)) * (1.0 - intro_share)
+    }
+}

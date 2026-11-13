@@ -1,0 +1,117 @@
+// stdlib/color.cfx — colour helpers. Colours are f32x4 (r, g, b, a), linear-space.
+//
+// Doc comments are English, and translated in `cfxlib/i18n/<lang>.json` — see the convention written
+// out at the top of `stdlib/life.cfx`.
+
+import "math.cfx";
+
+namespace color {
+
+    // --- alpha ----------------------------------------------------------------------------------
+
+    /// @brief Replace a colour's alpha, leaving RGB untouched.
+    ///
+    /// @param c The colour to rebuild.
+    /// @param a The new alpha, replacing whatever the colour had.
+    ///
+    /// @result The same RGB with `a` as its alpha.
+    fn with_alpha(c: f32x4, a: f32) -> f32x4 { #f32x4(c.x, c.y, c.z, a) }
+
+    /// @brief Scale a colour's alpha by `k`, leaving RGB untouched — the fade-out idiom. Multiplies rather than assigns, so it composes: a particle already half-transparent from its spawn colour fades from where it is, not from opaque.
+    ///
+    /// @param c The colour to fade.
+    /// @param k The factor the alpha is multiplied by. 1 leaves it alone, 0 makes it invisible.
+    ///
+    /// @result The same RGB with its alpha scaled.
+    fn fade(c: f32x4, k: f32) -> f32x4 { with_alpha(c, c.w * k) }
+
+    // --- transforms -----------------------------------------------------------------------------
+
+    /// @brief Blend between two colours, alpha included.
+    ///
+    /// @param a The colour at t = 0.
+    /// @param b The colour at t = 1.
+    /// @param t Where between them to land. Saturated, so values outside [0, 1] clamp instead of extrapolating.
+    ///
+    /// @result The blended colour.
+    fn mix(a: f32x4, b: f32x4, t: f32) -> f32x4 { a + (b - a) * saturate(t) }
+
+    /// @brief Approximate gamma correction on RGB (alpha untouched).
+    ///
+    /// @param c The colour to correct.
+    /// @param g The exponent each RGB channel is raised to. 2.2 is the usual display gamma.
+    ///
+    /// @result The corrected colour, with its alpha as it was.
+    fn gamma(c: f32x4, g: f32 = 2.2) -> f32x4 {
+        #f32x4(exp2(log2(c.x) * g), exp2(log2(c.y) * g), exp2(log2(c.z) * g), c.w)
+    }
+
+    // hdr
+
+    // `exp_exposure` is a f32x4, not a scalar, because that is how the baker stores it: a uniform
+    // exposure is baked as `#f32x4(k, k, k, k)`, not as a scalar broadcast. Declaring it `f32` makes
+    // this function unmatchable — the reconstruction would have to bind a vector constant to a scalar
+    // parameter, which cannot recompile. Defaulting to ones means an effect that sets no exposure folds
+    // the multiply away (`x * 1` is exact) and still matches.
+
+    /// @brief Exposure, then a hue/saturation/value offset, then back to RGB — the standard colour-grading chain.
+    ///
+    /// @param rgba The colour to grade.
+    /// @param hsv_offset Added to the HSV form: hue shift, saturation shift, value shift, and the alpha offset in the last lane.
+    /// @param exp_exposure The exposure multiplier, as a vector because that is how the baker stores a uniform one. Ones leave the colour alone.
+    ///
+    /// @result The graded colour, back in RGB.
+    fn grading(rgba : f32x4, hsv_offset : f32x4, exp_exposure: f32x4 = #f32x4(1.0, 1.0, 1.0, 1.0)) -> f32x4 {
+        let expanded_rgba : f32x4 = rgba * exp_exposure;
+        let hsv : f32x4 = rgb2hsv(expanded_rgba);
+        let new_hsv : f32x4 = hsv + hsv_offset;
+        let new_rgba : f32x4 = hsv2rgb(new_hsv);
+        new_rgba
+    }
+
+
+    // ─── PopcornFX `Color` template (PopcornFXCore/Templates/Color.pkfx) ───────────────────────────
+    //
+    // The template converts to HSV, runs its `Adjust` script, and converts back:
+    //
+    //     HSVA = HSVA + vShift + vVar * 0.5 * vRandBiased;
+    //
+    // `vShift` is `float4(HueShift, SaturationShift, ValueShift, 0)`, a constant in every baked effect,
+    // and `vVar * 0.5 * vRandBiased` is drawn ONCE, at spawn, and stored in a particle field the baker
+    // names `internal_<hash>_1`. So the evolve program reads
+    //
+    //     hsv2rgb(rgb2hsv(c) + #f32x4(h, s, v, 0) + internal_xxxx_1)
+    //
+    // and that is this function: `shift` is the constant, `variation` the stored draw. The addition
+    // order is the script's, left to right, and it is load-bearing: `(hsv + shift) + variation` is not
+    // the same region as `hsv + (shift + variation)`, which is why `color.grading` (one offset) cannot
+    // take these.
+    /// @brief PopcornFX's `Color` template: shift a colour in HSV by a constant and by the particle's own spawn-time variation, then convert back to RGB.
+    ///
+    /// @param rgba The colour to adjust.
+    /// @param shift The constant HSV offset: hue, saturation, value shift, and 0 in the last lane.
+    /// @param variation The particle's spawn-time HSV draw (`rand(-1, 1) * HSVVariation * 0.5`), stored in a field.
+    ///
+    /// @result The adjusted colour, back in RGB.
+    fn adjust_hsv(rgba: f32x4, shift: f32x4, variation: f32x4) -> f32x4 {
+        let hsv : f32x4 = rgb2hsv(rgba);
+        let new_rgba : f32x4 = hsv2rgb(hsv + shift + variation);
+        new_rgba
+    }
+
+
+    // ─── PopcornFX `FadeOnStop`, the colour half (see `life.ratio_since_stop`) ───────────────────
+    //
+    // `Color * fadeOut` with both `FadeAlpha` and `FadeRGB` on (the template's defaults), where
+    // `fadeOut = 1 - TimeSinceStop` is read BEFORE the timer advances this frame.
+    /// @brief The colour half of PopcornFX's `FadeOnStop`: scale every channel by `1 - time_since_stop`, so the particle fades out as the stop timer runs. Pass the timer's value from before this frame's `life.ratio_since_stop`.
+    ///
+    /// @param c The colour to fade.
+    /// @param time_since_stop The `FadeOnStop` timer, 0 while the effect runs.
+    ///
+    /// @result The faded colour.
+    fn fade_on_stop(c: f32x4, time_since_stop: f32) -> f32x4 {
+        c * (1.0 - time_since_stop)
+    }
+
+} // namespace color

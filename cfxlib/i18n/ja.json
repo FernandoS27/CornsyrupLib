@@ -1,0 +1,995 @@
+{
+  "stdlib/color::color.with_alpha": {
+    "brief": "色のアルファだけを差し替え、RGB はそのままにします。",
+    "param": {
+      "c": "作り直す色。",
+      "a": "新しいアルファ。元の値を置き換えます。"
+    },
+    "result": "同じ RGB に `a` をアルファとして持たせた色。"
+  },
+  "stdlib/color::color.fade": {
+    "brief": "色のアルファに `k` を掛け、RGB はそのままにします。フェードアウトの定石です。代入ではなく乗算なので合成でき、出生色ですでに半透明なパーティクルは不透明からではなく今の状態からフェードします。",
+    "param": {
+      "c": "フェードさせる色。",
+      "k": "アルファに掛ける係数。1 は変化なし、0 で見えなくなります。"
+    },
+    "result": "アルファだけを掛け合わせた同じ RGB。"
+  },
+  "stdlib/color::color.mix": {
+    "brief": "2 つの色をアルファも含めて混ぜます。",
+    "param": {
+      "a": "t = 0 のときの色。",
+      "b": "t = 1 のときの色。",
+      "t": "2 色の間のどこに置くか。飽和されるため、[0, 1] の外側は外挿ではなくクランプされます。"
+    },
+    "result": "混ぜ合わされた色。"
+  },
+  "stdlib/color::color.gamma": {
+    "brief": "RGB に対する近似的なガンマ補正です（アルファは変更しません）。",
+    "param": {
+      "c": "補正する色。",
+      "g": "各 RGB チャンネルに掛ける指数。2.2 が一般的なディスプレイガンマです。"
+    },
+    "result": "補正後の色。アルファは元のままです。"
+  },
+  "stdlib/color::color.grading": {
+    "brief": "露出を掛け、色相・彩度・明度をずらし、RGB に戻す標準的なカラーグレーディングの流れです。",
+    "param": {
+      "rgba": "グレーディングする色。",
+      "hsv_offset": "HSV 形式に加算されます。色相・彩度・明度のずれと、最後のレーンにアルファのずれ。",
+      "exp_exposure": "露出の倍率。コンパイラが一様な値をこの形で保持するため、スカラーではなくベクトルです。すべて 1 なら色は変わりません。"
+    },
+    "result": "グレーディング後の色。RGB に戻されています。"
+  },
+  "stdlib/color::color.adjust_hsv": {
+    "brief": "PopcornFX の `Color` テンプレートです。色を HSV で定数と、生成時に引いたパーティクル固有のばらつきの分だけずらし、RGB に戻します。",
+    "param": {
+      "rgba": "調整する色。",
+      "shift": "一定の HSV のずれ。色相・彩度・明度のずれと、最後のレーンに 0。",
+      "variation": "パーティクルが生成時に引いた HSV の乱数（`rand(-1, 1) * HSVVariation * 0.5`）。フィールドに保存されています。"
+    },
+    "result": "調整後の色。RGB に戻したもの。"
+  },
+  "stdlib/color::color.fade_on_stop": {
+    "brief": "PopcornFX の `FadeOnStop` の色の部分です。各チャンネルを `1 - time_since_stop` 倍し、停止タイマーが進むにつれてパーティクルをフェードアウトさせます。このフレームの `life.ratio_since_stop` より前のタイマー値を渡してください。",
+    "param": {
+      "c": "フェードさせる色。",
+      "time_since_stop": "`FadeOnStop` のタイマー。エフェクトの実行中は 0。"
+    },
+    "result": "フェード後の色。"
+  },
+  "stdlib/easing::easing.ease_in_quad": {
+    "brief": "静止から加速します。序盤はゆっくり、終盤がいちばん速くなります。二次曲線です。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。先に飽和されるため、範囲外はクランプされます。"
+    },
+    "result": "イージング後の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.ease_out_quad": {
+    "brief": "減速して止まります。序盤がいちばん速く、終盤はゆっくりになります。二次曲線です。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。先に飽和されるため、範囲外はクランプされます。"
+    },
+    "result": "イージング後の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.ease_in_cubic": {
+    "brief": "静止から加速します。二次より強く、序盤はほぼ平坦です。三次曲線です。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。先に飽和されるため、範囲外はクランプされます。"
+    },
+    "result": "イージング後の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.ease_out_cubic": {
+    "brief": "減速して止まります。二次より強く、終盤はほぼ平坦です。三次曲線です。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。先に飽和されるため、範囲外はクランプされます。"
+    },
+    "result": "イージング後の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.ease_in_out_quad": {
+    "brief": "静止から加速し、再び減速して止まります。中間で半分の速さで両者がつながります。前後半とも二次曲線です。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。先に飽和されるため、範囲外はクランプされます。"
+    },
+    "result": "イージング後の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.ease_sine": {
+    "brief": "サイン波によるイーズインアウト。軽い曲線のなかで最も滑らかで、両端に角が見えません。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。先に飽和されるため、範囲外はクランプされます。"
+    },
+    "result": "イージング後の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.pulse": {
+    "brief": "0 → 1 → 0 の山です。[0, peak] で立ち上がり、[peak, 1] で下がります。定番のフェードイン・フェードアウトです。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。",
+      "peak": "山が 1 に達する位置。前に寄せると、短い閃光と長い余韻になります。"
+    },
+    "result": "`t` における山の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.fade_out_after": {
+    "brief": "`hold` までは 1 を保ち、その後 t = 1 までに 0 へフェードします。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。",
+      "hold": "フェードが始まるまで最大値を保つ長さ。"
+    },
+    "result": "保持中は 1、その後 0 まで下がります。"
+  },
+  "stdlib/easing::easing.fade_in_out": {
+    "brief": "`in_end` まで立ち上がり、保持し、`out_start` から下がります。ピークではなく台形です。",
+    "param": {
+      "t": "0 から 1 の正規化された位置。",
+      "in_end": "立ち上がりが終わり、保持が始まる位置。",
+      "out_start": "保持が終わり、下降が始まる位置。"
+    },
+    "result": "`t` における台形の値。0 から 1 です。"
+  },
+  "stdlib/easing::easing.decay": {
+    "brief": "0 に向かう指数減衰です。`half_life` ごとに半分になり、厳密にゼロにはなりません。",
+    "param": {
+      "t": "減衰がどこまで進んだか。単位は `half_life` と同じです。",
+      "half_life": "値が半分になるまでの長さ。小さいほど速く減衰します。"
+    },
+    "result": "残っている割合。t = 0 で 1、以後 0 に近づきます。"
+  },
+  "stdlib/events::events.trigger_on_death": {
+    "brief": "このパーティクルが死ぬティックにだけ発火する単発トリガーの生成状態です。PopcornFX の `SimpleOnDeath` イベントノードがコンパイルされる形そのものです。`spawn.emit` でそのまま発火するか、`initPayload` でペイロードを開いて `emplace_*` ヘルパーで埋めてください。",
+    "result": "`trigger` が返す生成状態の三つ組で、レートに対する `generate` の戻り値と同じものです。`initPayload` と `buildPayloadElement` が受け取ります。パーティクルが生きている間は毎ティック空です。"
+  },
+  "stdlib/events::events.emplace_payload": {
+    "brief": "ペイロードに値を 1 つ追加します。`semantic` は数値を直接書かず `payloads.PackSemantics` で組み立ててください。さもないと次に読む人が手で解読することになります。",
+    "param": {
+      "event": "ペイロードが属するイベント。",
+      "gen": "ペイロードを開いたときの生成状態（`initPayload` の第 2 引数）。",
+      "key": "追加先のペイロードキー。最初の要素では `initPayload` の結果、以降は直前の `emplace_*` の結果です。",
+      "index": "イベント宣言における要素の位置。リテラルでなければならず、重要な値です。間違えてもエラーにはならず静かに壊れます。",
+      "value": "生成される各子パーティクルが受け取る値。",
+      "semantic": "種別と補間方法を詰めた語。エンジンはこれを uniform として登録するため、コンパイル時定数でなければなりません。"
+    },
+    "result": "次に追加するときのキー。これを繋いでいき、最後のキーで `kick` してください。さもないと追加した要素がすべて失われます。"
+  },
+  "stdlib/events::events.emplace_position": {
+    "brief": "出生位置を追加します。エンジンのスポーン変換が認識できるようタグ付けされます。PopcornFX の `EventPayloadAppend` が `XFormsPositions` ペイロードに書き出すものと同じです。",
+    "param": {
+      "event": "ペイロードが属するイベント。",
+      "gen": "ペイロードを開いたときの生成状態。",
+      "key": "追加先のペイロードキー。",
+      "index": "イベント宣言における要素の位置。",
+      "position": "子パーティクルが生まれる位置。"
+    },
+    "result": "次に追加するときのキー。"
+  },
+  "stdlib/events::events.emplace_element": {
+    "brief": "特別な意味を持たない任意の幅の値を追加します。もっとも一般的なケースです。",
+    "param": {
+      "event": "ペイロードが属するイベント。",
+      "gen": "ペイロードを開いたときの生成状態。",
+      "key": "追加先のペイロードキー。",
+      "index": "イベント宣言における要素の位置。",
+      "value": "生成される各子パーティクルが受け取る値。"
+    },
+    "result": "次に追加するときのキー。"
+  },
+  "stdlib/life::life.set_lifetime": {
+    "brief": "このパーティクルの寿命を秒単位で設定します。PopcornFX の `SetLife` ノードと同じ働きです。",
+    "param": {
+      "seconds": "パーティクルが生きる長さ。0 は Life が 0 の `SetLife` と同じく、最初の更新で死なせます。何かに殺されるまで生き続けさせるには `inf` を渡してください。"
+    }
+  },
+  "stdlib/life::life.kill_when": {
+    "brief": "`cond` が真のとき死にます。そうでなければ現在の寿命を保ちます。",
+    "param": {
+      "cond": "真ならこのティックで死にます。レーンごとに評価されるため、パーティクルごとに判定されます。"
+    }
+  },
+  "stdlib/life::life.age_ratio": {
+    "brief": "このパーティクルの正規化された経過時間。",
+    "result": "誕生時が 0、死亡時が 1。すべてのフェード、サイズ変化、カラーカーブを駆動する値です。"
+  },
+  "stdlib/life::life.select_texture_id_on_age": {
+    "brief": "パーティクルの寿命に沿って、レンダラーのアトラスを最初のフレームから最後のフレームへ進めます。",
+    "param": {
+      "local_rend": "グリッドを与える `Atlas.SubDiv` を持つレンダラー。ハンドルなので、フレーム数は呼び出し側が指定したものから読まれます。"
+    },
+    "result": "このパーティクルの経過時間に対応するアトラスのフレーム番号（1 始まり）。レイヤーの `TextureID` フィールドに代入してください。"
+  },
+  "stdlib/life::life.select_texture_id_on_inv_age": {
+    "brief": "パーティクルの寿命に沿って、レンダラーのアトラスを最後のフレームから最初のフレームへ逆向きに進めます。",
+    "param": {
+      "local_rend": "グリッドを与える `Atlas.SubDiv` を持つレンダラー。ハンドルなので、フレーム数は呼び出し側が指定したものから読まれます。"
+    },
+    "result": "このパーティクルの残り寿命に対応するアトラスのフレーム番号（1 始まり）。レイヤーの `TextureID` フィールドに代入してください。"
+  },
+  "stdlib/life::life.ratio_since_stop": {
+    "brief": "PopcornFX の `InfiniteLife` と `FadeOnStop` テンプレートが持つ停止タイマーの 1 フレーム分です。エフェクトの実行中は 0 で、停止すると毎秒 `rate` の速さで 1 まで上がります。1 に達したらパーティクルを消し（`self.kill(t == 1.0)`）、`color.fade_on_stop` で色を `1 - t` 倍にフェードさせてください。",
+    "param": {
+      "timer": "テンプレートが追加するタイマーフィールド（`LifeRatioSinceStop` / `TimeSinceStop`）。生成時に 0、1 で飽和します。",
+      "rate": "停止後に進む速さ（毎秒）。`InfiniteLife` なら `1 / DeathDelay`、`FadeOnStop` なら `FadeSpeed`。`inf` なら停止後の最初のフレームで消えます。"
+    },
+    "result": "タイマーの新しい値。フィールドに書き戻してください。"
+  },
+  "stdlib/math::math.DEG2RAD": {
+    "brief": "度からラジアンへの係数です。エンジンの三角関数はすべてラジアンなので、人が書いた角度はここを通す必要があります。"
+  },
+  "stdlib/math::math.RAD2DEG": {
+    "brief": "ラジアンから度への係数です。エンジンの角度を人が読める形に戻す道です。"
+  },
+  "stdlib/math::math.PI": {
+    "brief": "ラジアンでの半回転。円周の長さと直径の比です。"
+  },
+  "stdlib/math::math.TAU": {
+    "brief": "ラジアンでの一回転です。`rand(0.0, TAU)` は円周上のランダムな角度を得る定石です。"
+  },
+  "stdlib/math::math.deg_to_rad": {
+    "brief": "角度を度からラジアンに変換します。",
+    "param": {
+      "d": "度単位の角度。"
+    },
+    "result": "同じ角度をラジアンで表したもの。"
+  },
+  "stdlib/math::math.rad_to_deg": {
+    "brief": "角度をラジアンから度に変換します。",
+    "param": {
+      "r": "ラジアン単位の角度。"
+    },
+    "result": "同じ角度を度で表したもの。"
+  },
+  "stdlib/math::math.remap": {
+    "brief": "`x` を [lo, hi] の範囲から [0, 1] に対応付けます。既定ではクランプされます。",
+    "param": {
+      "x": "対応付ける値。",
+      "lo": "0 に対応する値。",
+      "hi": "1 に対応する値。",
+      "clamped": "結果を [0, 1] に収めるかどうか。偽なら両端の外側まで伸びます。"
+    },
+    "result": "`lo` と `hi` の間で `x` がどこにあるか。"
+  },
+  "stdlib/math::math.inv_lerp": {
+    "brief": "クランプしない逆補間です。`lo` と `hi` の間で `x` がどこにあるかを返し、両端の外側にも伸びます。",
+    "param": {
+      "x": "対応付ける値。",
+      "lo": "0 に対応する値。",
+      "hi": "1 に対応する値。"
+    },
+    "result": "クランプされていない位置。0 未満や 1 超えになりうます。"
+  },
+  "stdlib/math::math.remap_range": {
+    "brief": "`x` を [in_lo, in_hi] から [out_lo, out_hi] に対応付けます。2 つの範囲間の一般的な再対応付けです。",
+    "param": {
+      "x": "対応付ける値。",
+      "in_lo": "`out_lo` に対応する入力値。",
+      "in_hi": "`out_hi` に対応する入力値。",
+      "out_lo": "下端が何になるか。",
+      "out_hi": "上端が何になるか。",
+      "clamped": "結果を出力範囲に収めるかどうか。"
+    },
+    "result": "再対応付けされた値。"
+  },
+  "stdlib/math::math.clamp01": {
+    "brief": "値を [0, 1] の範囲に収めます。",
+    "param": {
+      "x": "対応付ける値。"
+    },
+    "result": "クランプされた値。"
+  },
+  "stdlib/math::math.smoothstep": {
+    "brief": "[e0, e1] 上のエルミートスムースステップです。両端で傾きがゼロになるため、始まりも終わりも角が見えません。",
+    "param": {
+      "e0": "ランプが始まる位置。",
+      "e1": "ランプが終わる位置。",
+      "x": "対応付ける値。"
+    },
+    "result": "滑らかにされた値。0 から 1 です。"
+  },
+  "stdlib/math::math.blend": {
+    "brief": "浮動小数点のスカラーやベクトルに使える線形補間です。`t` はスカラーでブロードキャストされ、クランプはされません。範囲外になり得るなら先に `clamp01` を通してください。",
+    "param": {
+      "a": "t = 0 のときの値。",
+      "b": "t = 1 のときの値。",
+      "t": "2 つの間のどこに置くか。"
+    },
+    "result": "混ぜ合わされた値。"
+  },
+  "stdlib/math::math.approach": {
+    "brief": "飽和させた `rate` だけ `cur` を `target` に近づけます。フレームごとの定番のイージングです。仕組み上フレームレートに依存するため、依存させたくなければ `rate` に `scene.dt` を掛けてください。",
+    "param": {
+      "cur": "値が今どこにあるか。",
+      "target": "どこへ向かっているか。",
+      "rate": "今回の呼び出しで残りの差をどれだけ埋めるか。飽和されるので 1 なら一気に到達します。"
+    },
+    "result": "1 ステップ後の値。"
+  },
+  "stdlib/math::math.clamp_to": {
+    "brief": "任意の浮動小数点スカラー・ベクトルに対し、成分ごとに [lo, hi] へクランプします。",
+    "param": {
+      "v": "クランプする値。",
+      "lo": "成分ごとの下限。",
+      "hi": "成分ごとの上限。"
+    },
+    "result": "クランプされた値。"
+  },
+  "stdlib/math::math.safe_rcp": {
+    "brief": "`1/x` を返し、`x` が 0 のときは `fallback` を返します。エンジンの `rcp(0)` は ±inf で、NaN として伝播します。守っているのは結果であって除算ではなく、両方の分岐が常に評価されます。",
+    "param": {
+      "x": "逆数を取る値。",
+      "fallback": "`x` がちょうど 0 のときに返す値。"
+    },
+    "result": "逆数、またはフォールバック値。"
+  },
+  "stdlib/math::math.safe_div": {
+    "brief": "`a/b` を返し、`b` が 0 のときは `fallback` を返します。守っているのは結果であって除算ではなく、除算自体は実行され、その ±inf が捨てられます。",
+    "param": {
+      "a": "分子。",
+      "b": "分母。",
+      "fallback": "`b` がちょうど 0 のときに返す値。"
+    },
+    "result": "商、またはフォールバック値。"
+  },
+  "stdlib/math::math.sign_or": {
+    "brief": "`sign(x)` と同じですが、ちょうど 0 のときはエンジンの答えではなく `zero` を返します。「どちらでもない」に特定の意味を持たせたいときに使います。",
+    "param": {
+      "x": "符号を知りたい値。",
+      "zero": "ちょうど 0 のときに返す値。"
+    },
+    "result": "-1、`zero`、または +1。"
+  },
+  "stdlib/math::degrees.sin": {
+    "brief": "度で与えられた角度のサイン。",
+    "param": {
+      "x": "度単位の角度。"
+    },
+    "result": "サインの値。-1 から 1 です。"
+  },
+  "stdlib/math::degrees.cos": {
+    "brief": "度で与えられた角度のコサイン。",
+    "param": {
+      "x": "度単位の角度。"
+    },
+    "result": "コサインの値。-1 から 1 です。"
+  },
+  "stdlib/math::degrees.tan": {
+    "brief": "度で与えられた角度のタンジェント。",
+    "param": {
+      "x": "度単位の角度。"
+    },
+    "result": "タンジェントの値。90 度付近で発散します。"
+  },
+  "stdlib/math::degrees.asin": {
+    "brief": "逆サインを度で返します。",
+    "param": {
+      "x": "逆関数を取る比。"
+    },
+    "result": "度単位の角度。"
+  },
+  "stdlib/math::degrees.acos": {
+    "brief": "逆コサインを度で返します。",
+    "param": {
+      "x": "逆関数を取る比。"
+    },
+    "result": "度単位の角度。"
+  },
+  "stdlib/math::degrees.atan": {
+    "brief": "逆タンジェントを度で返します。両方の辺が分かっている場合は、象限を保つため `atan2` を使ってください。",
+    "param": {
+      "x": "逆関数を取る比。"
+    },
+    "result": "度単位の角度。"
+  },
+  "stdlib/math::degrees.atan2": {
+    "brief": "ベクトル (x, y) の角度を、全周にわたって度で返します。`atan` と違い両引数の符号が保たれるため、象限が失われません。",
+    "param": {
+      "y": "垂直方向の辺。",
+      "x": "水平方向の辺。"
+    },
+    "result": "度単位の角度。"
+  },
+  "stdlib/payload::payloads.Lerp.None": {
+    "brief": "ソースフレームは 1 つ。子は値をそのまま受け取り、補間は行われません。"
+  },
+  "stdlib/payload::payloads.Lerp.VectorLinear": {
+    "brief": "2 フレームを成分ごとに混ぜます。子の値は 2 つの出生フレームの間に置かれます。"
+  },
+  "stdlib/payload::payloads.Lerp.VectorCubic": {
+    "brief": "ソースは 4 つ。両フレームと両方の微分値です。`buildPayloadElementD` 形式の微分ストリームを保持する唯一のモードで、他のモードはこれを捨てます。"
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionNlerp": {
+    "brief": "2 フレームを正規化クォータニオンとして混ぜます。安価な回転補間で、最短経路を通りますが角速度は一定になりません。"
+  },
+  "stdlib/payload::payloads.Lerp.QuaternionSlerp": {
+    "brief": "2 フレームを大円に沿って混ぜます。角速度は一定ですが、正規化版より高コストです。"
+  },
+  "stdlib/payload::payloads.EKind.Generic": {
+    "brief": "スポーン機構にとって特別な意味を持たない通常のペイロード要素です。変換でも子インデックスでもないものはすべてこれが正解です。"
+  },
+  "stdlib/payload::payloads.EKind.Position": {
+    "brief": "出生位置です。種別はペイロードキャッシュのヘッダに書き込まれ、スポーン変換がそこから読み取ります。"
+  },
+  "stdlib/payload::payloads.EKind.Orientation": {
+    "brief": "出生時の向きです。`Position` と同じ扱いで、スポーン変換のためにヘッダへ記録されます。"
+  },
+  "stdlib/payload::payloads.EKind.EmittedCount": {
+    "brief": "バースト内での各子の連番です。実際に作用するのはスカラー int 要素のときだけで、それ以外の幅ではエンジンは種別を保存するだけで何もしません。"
+  },
+  "stdlib/payload::payloads.PackSemantics": {
+    "brief": "ペイロード要素の補間方法と種別を、`buildPayloadElement` の最後の引数となる語に詰め込みます。引数の順序に注意してください。`lerp` が先で `kind` が後です。エンジン自身の `PackSemantics` は逆順です。",
+    "param": {
+      "lerp": "エンジンが読むソースフレーム数。`Lerp` から選びます。",
+      "kind": "その要素がスポーン機構にとって何を意味するか。`EKind` から選びます。既定は `Generic` で、出生変換でも放出インデックスでもない要素はすべてこれで正しくなります。"
+    },
+    "result": "詰め込まれた語。ビルド時に畳まれるため、値に名前を付けても一切コストはかかりません。"
+  },
+  "stdlib/payload::payloads.ACCUM_SEED": {
+    "brief": "レート駆動エミッタの `generate` アキュムレータの初期値です。繰り越し量 0.99999（float のビット列 `0x3F7FFF58`、1 のわずかに手前）なので、何かを加えた最初のフレームで最初のパーティクルが放出されます。"
+  },
+  "stdlib/payload::payloads.seed": {
+    "brief": "レート駆動エミッターの `generate` アキュムレータの初期値で、`carry` 個分の粒子を最初のフレームに持ち越す。レーン 0 に float のビット、レーン 1 は 0。`seed(0.99999)` は `ACCUM_SEED` と同じ。",
+    "param": {
+      "carry": "最初のフレームの前にアキュムレータが持つ粒子の割合。カウントが 1 に達したフレームで最初の粒子が出る。"
+    },
+    "result": "アキュムレータの初期値。ビルド時に畳み込まれる。"
+  },
+  "stdlib/physics::physics.integrate/2": {
+    "brief": "`velocity` によって `position` を 1 フレーム進めます（陽的オイラー法）。速度を更新する前に呼べば対称でタイムステップに強い形になり、後に呼ぶと投げたパーティクルが手前に落ちます。",
+    "param": {
+      "position": "パーティクルの位置。その場で更新されます。",
+      "velocity": "進めるための速度（毎秒）。あらかじめ `scene.dt` を掛けないでください。この関数自身がフレーム時間を掛けます。"
+    }
+  },
+  "stdlib/physics::physics.bounce_floor": {
+    "brief": "高さ `height` の水平面で跳ね返り、鉛直速度の `restitution` 倍を保ちます。面を突き抜けて反射させるのではなく面に貼り付けるため、フレームが遅くてもすり抜けません。反射するのは `z` だけで、水平方向の運動はそのままです。",
+    "param": {
+      "position": "パーティクルの位置。面より下にあるとき面上へ引き上げられます。",
+      "velocity": "パーティクルの速度。鉛直成分が反射されスケールされます。",
+      "height": "床が z 軸上のどこにあるか。",
+      "restitution": "衝突時に残す鉛直速度の割合。1 なら永遠に跳ね続け、0 ならその場で止まります。"
+    }
+  },
+  "stdlib/physics::physics.integrate/6": {
+    "brief": "一定の加速度と、風の場へ向かう線形抗力の両方のもとで 1 フレーム分の運動を進めます。逐次積分ではなく閉じた形で解くため、どのフレームレートでも正しいままです。抗力がなければ通常の速度ベルレに帰着するため、単純な場合の厳密な一般化になっています。",
+    "param": {
+      "position": "パーティクルの位置。その場で更新されます。",
+      "velocity": "パーティクルの速度。その場で更新されます。",
+      "acceleration": "そのフレームの一定加速度（単位/秒²）。重力は `#f32x3(0, 0, -g)` としてここに入れます。`mass` では割られません。",
+      "wind": "パーティクルが引き寄せられる速度。`drag` が 0 のときは効きません。",
+      "mass": "`drag` を割るためだけに使われます。重いパーティクルほど抗力の影響を受けません。0 より大きくなければなりません。",
+      "drag": "抗力係数。`drag/mass` が 1/秒 単位の減衰率になります。0 は真空です。"
+    }
+  },
+  "stdlib/physics::physics.integrate_in_field": {
+    "brief": "PopcornFX の `Physics` テンプレートの 1 フレーム分で、ベクトル場（タービュランス）入力を接続した形です。一定の加速度に加え、パーティクルごとの場の速度へ向かう線形の抵抗を閉じた形で解きます。",
+    "param": {
+      "position": "パーティクルの位置。その場で更新されます。",
+      "velocity": "パーティクルの速度。その場で更新されます。",
+      "field": "パーティクルが引き寄せられる場の速度。パーティクルの位置でサンプリングしたもの。",
+      "acceleration": "フレーム中の一定の加速度（単位/s²）。",
+      "mass": "`drag` だけを割ります。0 より大きくしてください。",
+      "drag": "抵抗係数。`drag/mass` が 1/s 単位の減衰率です。"
+    }
+  },
+  "stdlib/physics::physics.integrate/3": {
+    "brief": "弾道運動です。一定の下向き重力だけで、他には何もありません。完全な `integrate` の圧倒的に多い使い方で、呼び出し側では加速度ベクトルよりスカラーの重力の方が読みやすいため別に書かれています。追加コストはありません。増える引数はすべて定数なので、同じコードに特殊化されます。",
+    "param": {
+      "position": "パーティクルの位置。その場で更新されます。",
+      "velocity": "パーティクルの速度。その場で更新されます。",
+      "gravity": "下向きに引く強さ。WC3 は Z-up なので -z 方向に作用します。大きいほど重く感じられます。"
+    }
+  },
+  "stdlib/physics::physics.projection": {
+    "brief": "パーティクルを `shape` の表面に貼り付けます。`position` を表面へ引き寄せ、`velocity` のうち表面を販く成分を取り除きます。パーティクルは表面に沿って滑り続け、沈み込むことも跳ね返ることもありません。表面はパーティクルの現在位置で問い合わされるため、`integrate` の後に呼べば誤差は 1 フレーム分の移動量に収まります。",
+    "param": {
+      "position": "パーティクルの位置。その場で更新されます。",
+      "velocity": "パーティクルの速度。その場で更新されます。",
+      "shape": "貼り付く先の表面。自身のローカル空間で問い合わされるため、入力は両方ともそこへ変換され、結果も両方元に戻されます。"
+    }
+  },
+  "stdlib/physics::physics.bounce_off_scene": {
+    "brief": "1 フレームの動きをシーンで跳ね返らせます。`previous` から `position` へレイを飛ばし、当たった所で `velocity` を表面に対して反射させ、フレームの残りを接触点から進みます。結果は `new_position` と `new_velocity` に書き込まれ、これらは `position` と `velocity` の元のフィールドでもかまいません。普通は `physics.collision` から呼びます。",
+    "param": {
+      "new_position": "パーティクルがフレームを終える位置。外れたときは `position`。",
+      "new_velocity": "フレーム後のパーティクルの速度。外れたときは `velocity`。",
+      "position": "このフレームで積分がパーティクルを置いた位置。",
+      "velocity": "積分後のパーティクルの速度。",
+      "previous": "フレーム開始時のパーティクルの位置で、レイの始点。",
+      "restitution": "衝突時に残る、表面へ向かう速度の割合。同じ割合が表面に沿って失われます。1 なら永遠に跳ね、0 ならその場で止まります。",
+      "enabled": "このフレームで衝突させるかどうか。`false` ならレイを飛ばさず、パーティクルは通り抜けます。",
+      "filter": "ゲームのシーン問い合わせに渡す衝突フィルター。ゲームがベイクする衝突はすべて 0 を渡します。"
+    },
+    "result": "このフレームでパーティクルがシーンに当たったかどうか。"
+  },
+  "stdlib/physics::physics.collision/6": {
+    "brief": "シーンと衝突します。PopcornFX の `Collision` テンプレートが `CollideWith` Scene で行うことです。フレームの `previous` から `position` への動きがシーンのジオメトリと交わる所で、パーティクルは接触点で跳ね返ります。フレームを積分した後に、それまでの位置を渡して呼びます。",
+    "param": {
+      "position": "このフレームで積分がパーティクルを置いた位置。その場で更新されます。",
+      "velocity": "積分後のパーティクルの速度。その場で更新されます。",
+      "previous": "フレーム開始時のパーティクルの位置。積分前の位置です。",
+      "restitution": "衝突時に残る、表面へ向かう速度の割合。同じ割合が表面に沿って失われます。1 なら永遠に跳ね、0 ならその場で止まります。",
+      "enabled": "このフレームで衝突させるかどうか。`false` ならパーティクルは通り抜けます。",
+      "filter": "ゲームのシーン問い合わせに渡す衝突フィルター。ゲームがベイクする衝突はすべて 0 を渡します。"
+    }
+  },
+  "stdlib/physics::physics.collision/9": {
+    "brief": "もう一方の `collision` と同じくシーンと衝突し、跳ね返りを数えます。PopcornFX の `Collision` テンプレートと同じように、パーティクルは `bounces_before_death` 回の後の跳ね返りで、`die_on_contact` なら最初の接触で死にます。`bounces` はパーティクルが持つ 0 から始まるフィールドです。",
+    "param": {
+      "position": "このフレームで積分がパーティクルを置いた位置。その場で更新されます。",
+      "velocity": "積分後のパーティクルの速度。その場で更新されます。",
+      "bounces": "パーティクルがシーンに当たった回数。その場で更新されます。0 から始まるフィールドに置いてください。",
+      "previous": "フレーム開始時のパーティクルの位置。積分前の位置です。",
+      "restitution": "衝突時に残る、表面へ向かう速度の割合。同じ割合が表面に沿って失われます。1 なら永遠に跳ね、0 ならその場で止まります。",
+      "bounces_before_death": "パーティクルが耐える跳ね返りの回数。0 なら決して死にません。",
+      "die_on_contact": "`bounces_before_death` に関係なく、最初の接触でパーティクルを殺します。",
+      "enabled": "このフレームで衝突させるかどうか。`false` ならパーティクルは通り抜けます。",
+      "filter": "ゲームのシーン問い合わせに渡す衝突フィルター。ゲームがベイクする衝突はすべて 0 を渡します。"
+    }
+  },
+  "stdlib/physics::physics.spin": {
+    "brief": "ビルボードを回転させます。角度 `rotation` をこのフレームの間に毎秒 `speed` だけ進めたもので、PopcornFX の `Legacy_Rotation` テンプレートが既定値でコンパイルされる形です。書き戻してください: `Rotation = physics.spin(Rotation, speed);`。",
+    "param": {
+      "rotation": "パーティクルの回転角。",
+      "speed": "回転の速さ（毎秒）。あらかじめ `scene.dt` を掛けないでください。"
+    },
+    "result": "このフレーム後の角度。"
+  },
+  "stdlib/random::random.rand_signed": {
+    "brief": "[-amount, +amount] の範囲の乱数です。ゼロを中心とした対称なゆらぎになります。",
+    "param": {
+      "amount": "範囲の半分の幅。ゼロの両側にこの分だけ広がります。"
+    },
+    "result": "`-amount` から `+amount` の間の値。"
+  },
+  "stdlib/random::random.rand_around": {
+    "brief": "`center` を中心に、両側へ `spread` だけ広がる乱数です。",
+    "param": {
+      "center": "範囲の中心。",
+      "spread": "`center` から両側にどこまで外れてよいか。"
+    },
+    "result": "`center - spread` から `center + spread` の間の値。"
+  },
+  "stdlib/random::random.rand_box": {
+    "brief": "原点を中心とした軸並行のボックス内のランダムな点です。",
+    "param": {
+      "half": "各軸方向のボックスの半分の大きさ。"
+    },
+    "result": "ボックス内部の点。"
+  },
+  "stdlib/random::random.rand_dir_xy": {
+    "brief": "水平面（WC3 は Z-up なので x と y）内のランダムな方向です。垂直成分を任意で加えられます。",
+    "param": {
+      "z": "正規化前に平面から +z 方向へどれだけ傾けるか。0 なら水平のままです。"
+    },
+    "result": "単位方向ベクトル。"
+  },
+  "stdlib/random::random.rand_dir": {
+    "brief": "球面上で一様なランダムな単位方向です。PopcornFX の `vrand()` です。",
+    "result": "単位方向ベクトル。"
+  },
+  "stdlib/random::random.jitter": {
+    "brief": "各軸で最大 `amount` のランダムなずれを位置に加えます。",
+    "param": {
+      "pos": "ずらす位置。",
+      "amount": "1 つの軸で許される最大のずれ。"
+    },
+    "result": "ゆらぎを加えた位置。"
+  },
+  "stdlib/space::coord_space.local_to_world_position_xtrans_only": {
+    "brief": "点をエミッタのローカル空間からワールド空間へ移します。平行移動だけです。原点の回転は恒等変換なので、ここで回転のコストは発生しません。",
+    "param": {
+      "local_pos": "エミッタのローカル空間における点。"
+    },
+    "result": "同じ点をワールド空間で表したもの。"
+  },
+  "stdlib/space::coord_space.local_to_world_position": {
+    "brief": "点をエミッタのローカル空間からワールド空間へ移します。平行移動に加えて回転も行う、出生位置の通常のケースです。",
+    "param": {
+      "local_pos": "エミッタのローカル空間における点。"
+    },
+    "result": "同じ点をワールド空間で表したもの。"
+  },
+  "stdlib/space::coord_space.local_to_world_direction": {
+    "brief": "方向をエミッタのローカル空間からワールド空間へ移します。回転のみです。方向がエミッタの平行移動を拾ってはいけません。",
+    "param": {
+      "local_dir": "エミッタのローカル空間における方向。"
+    },
+    "result": "同じ方向をワールド空間で表したもの。"
+  },
+  "stdlib/space::coord_space.world_to_local_position": {
+    "brief": "点をワールド空間からエミッタのローカル空間へ戻します。シェイプサンプラーが入力に求める向きです。",
+    "param": {
+      "world_pos": "ワールド空間における点。"
+    },
+    "result": "同じ点をエミッタのローカル空間で表したもの。"
+  },
+  "stdlib/space::coord_space.world_to_local_direction": {
+    "brief": "方向をワールド空間からエミッタのローカル空間へ戻します。回転のみで、外向きの対になる関数が平行移動しないのと同じ理由です。",
+    "param": {
+      "world_dir": "ワールド空間における方向。"
+    },
+    "result": "同じ方向をエミッタのローカル空間で表したもの。"
+  },
+  "stdlib/space::coord_space.world_to_local_position_prev": {
+    "brief": "前フレームのワールド空間の点を、同じ前フレームのエミッタローカル空間へ移します。フレームごとの差分を作るための形です。コーパス中で Prev ビットを立てる唯一のマスクで、しかも両側に同時に立てます。",
+    "param": {
+      "world_pos": "前フレームのワールド空間における点。"
+    },
+    "result": "同じ点を前フレームのエミッタローカル空間で表したもの。"
+  },
+  "stdlib/space::coord_space.world_prev_to_world_position": {
+    "brief": "点を前のフレームのワールド空間から今のフレームのワールド空間へ運びます。フレーム中のエミッターの動きをその点に適用するもので、動くエミッターにパーティクルが追従する仕組みです。",
+    "param": {
+      "world_pos": "前のフレームのワールド空間での点。"
+    },
+    "result": "今のフレームのワールド空間での同じ点。"
+  },
+  "stdlib/space::coord_space.local_to_world_position_scaled": {
+    "brief": "点をエミッターのローカル空間からワールド空間へ移します。平行移動に加えて回転とスケールも適用します。エミッターと一緒にスケールするレイヤーの生成位置です。",
+    "param": {
+      "local_pos": "エミッターのローカル空間での点。"
+    },
+    "result": "ワールド空間での同じ点。"
+  },
+  "stdlib/space::coord_space.world_to_local_position_xtrans_only": {
+    "brief": "点をワールド空間からエミッターのローカル空間へ、平行移動だけで移します。`local_to_world_position_xtrans_only` の逆です。",
+    "param": {
+      "world_pos": "ワールド空間での点。"
+    },
+    "result": "エミッターのローカル空間での同じ点。"
+  },
+  "stdlib/space::coord_space.rotation_about_z": {
+    "brief": "上方向の軸（Z）まわりに `time * degrees_per_second` 度回転させる回転を、オリエンテーションとして返します。PopcornFX がパーティクルの向きを一定の速さで回す方法です。",
+    "param": {
+      "time": "回り始めてからの時間（秒）。",
+      "degrees_per_second": "回転の速さ。"
+    },
+    "result": "回転。Z まわりの単位クォータニオン。"
+  },
+  "stdlib/space::coord_space.world_base_position": {
+    "brief": "エミッタの原点をワールド空間で表したもの。つまり、このエミッタが今どこにあるかです。",
+    "result": "エミッタのワールド座標。"
+  },
+  "stdlib/spawn::spawn.emit": {
+    "brief": "生成数だけを添えて `evt` を発火します。子ごとのペイロードはありません。もっとも素朴な放出です。",
+    "param": {
+      "evt": "発火させるイベント。",
+      "gen": "今フレームの生成状態。`generate` の戻り値そのままで、繰り上がり・総数・キーが入っています。"
+    }
+  },
+  "stdlib/spawn::spawn.emit_1": {
+    "brief": "ペイロード要素を 1 つ載せて `evt` を発火します。要素は事前に `buildPayloadElement` で作ってください。",
+    "param": {
+      "evt": "発火させるイベント。",
+      "gen": "今フレームの生成状態。`generate` の戻り値そのままです。",
+      "elem": "載せる要素のハンドル。",
+      "index": "そのイベントの `events.cfx` 宣言における要素の位置。重要な値で、間違えてもエラーにはならず静かに壊れます。",
+      "channel": "エミッションのキャッシュキーで、`initPayload` の最初の引数。レイヤーが 1 フレームに複数回送らない限り、レイヤーのイベントの中でのそのイベントの位置です。"
+    }
+  },
+  "stdlib/spawn::spawn.emit_2": {
+    "brief": "ペイロード要素を 2 つ載せて `evt` を発火し、キーを両方の追加に通します。最初のキーを `kick` に渡すと 2 つとも失われます。",
+    "param": {
+      "evt": "発火させるイベント。",
+      "gen": "今フレームの生成状態。`generate` の戻り値そのままです。",
+      "elem0": "1 つめの要素ハンドル。",
+      "elem1": "2 つめの要素ハンドル。",
+      "index0": "イベント宣言における 1 つめの要素の位置。",
+      "index1": "イベント宣言における 2 つめの要素の位置。",
+      "channel": "エミッションのキャッシュキーで、`initPayload` の最初の引数。レイヤーが 1 フレームに複数回送らない限り、レイヤーのイベントの中でのそのイベントの位置です。"
+    }
+  },
+  "stdlib/spawn::spawn.emit_3": {
+    "brief": "ペイロード要素を 3 つ載せて `evt` を発火し、キーを 3 回の追加すべてに通します。",
+    "param": {
+      "evt": "発火させるイベント。",
+      "gen": "今フレームの生成状態。`generate` の戻り値そのままです。",
+      "elem0": "1 つめの要素ハンドル。",
+      "elem1": "2 つめの要素ハンドル。",
+      "elem2": "3 つめの要素ハンドル。",
+      "index0": "イベント宣言における 1 つめの要素の位置。",
+      "index1": "イベント宣言における 2 つめの要素の位置。",
+      "index2": "イベント宣言における 3 つめの要素の位置。",
+      "channel": "エミッションのキャッシュキーで、`initPayload` の最初の引数。レイヤーが 1 フレームに複数回送らない限り、レイヤーのイベントの中でのそのイベントの位置です。"
+    }
+  },
+  "stdlib/templates::RootLayerTemplate": {
+    "brief": "ルートエミッタです。ほぼすべての WC3 エフェクトのレイヤー 0 にあたります。自身はパーティクルを持たず、`EventStream` サンプラーの焼き込まれたタイムラインをたどって項目ごとにイベントを発火し、そこから子レイヤーが生まれます。",
+    "param": {
+      "_sd_eventStream": "たどるタイムラインです。ハンドルを直書きせずパラメータにしているのは、サンプラーのハンドルが別のバンドルでは意味を持たないからで、これを再利用可能にしているのはまさにこのパラメータ化です。"
+    }
+  },
+  "stdlib/templates::EventMultiplier": {
+    "brief": "レート駆動のエミッタです。`_t_Duration` 秒の間、毎秒 `_t_EmissionRate` 個のイベントを発火します。焼き込まれたタイムラインではなく連続的に放出するレイヤー向けの、`RootLayerTemplate` の対です。",
+    "param": {
+      "_t_EmissionRate": "毎秒何個のイベントを発火させるか。",
+      "_t_Duration": "どれだけの間放出を続けるか。`inf` ならエフェクト全体を通して動きます。`rcp(inf)` はビルド時に 0 に畳まるため、バイトコードは手書きの無限寿命と同じになります。"
+    }
+  },
+  "stdlib/templates::TerminationTemplate": {
+    "brief": "エフェクトより 1 フレーム長く生き残るレイヤーです。最後のイベントを発火させる場所を残すためにあります。エフェクトが止まるとタイマーを進め、飽和したところで自滅します。",
+    "param": {
+      "_ev_Trigger": "このレイヤーが宣言し、配線はグラフに任せるイベントです。名前付きパラメータにしてあるのは、既存のレイヤーにテンプレートを適用したとき、隣にもう一つ追加するのではなくそのレイヤー自身のイベントを名前変更するためです。"
+    }
+  },
+  "stdlib/templates::TexturedBillboard": {
+    "brief": "素のテクスチャ付きビルボードです。コーパス中で圧倒的に多いレンダラーです。子側は必要なものをさらに追加できます。マージは加算的なので、テンプレートがすべての変種を先回りして抱えておく必要はありません。",
+    "param": {
+      "_t_Texture": "クアッドに描かれる画像。",
+      "_t_Mode": "クアッドをカメラに向ける方法。"
+    }
+  },
+  "stdlib/templates::SoftBillboard": {
+    "brief": "シーンのジオメトリに近づくと硬い境界を切るのではなくフェードするビルボードです。",
+    "param": {
+      "_t_Texture": "クアッドに描かれる画像。",
+      "_t_Softness": "ジオメトリからどれだけ離れたところでフェードを始めるか。大きいほど柔らかくなります。",
+      "_t_Mode": "クアッドをカメラに向ける方法。"
+    }
+  },
+  "stdlib/templates::AtlasBillboard": {
+    "brief": "パラパラ漫画式のビルボードです。パーティクルはレンダラーの `TextureID` 入力でフレームを選び、エンジンはそれを `frameCount - 1` にクランプします。",
+    "param": {
+      "_t_Texture": "クアッドに描かれる画像。",
+      "_t_SubDiv": "`(列数, 行数)` で表すグリッド。いずれも 1〜64 です。フレームは行優先で並び、列が最も速く変わり、フレーム 0 が上に来ます。",
+      "_t_Mode": "クアッドをカメラに向ける方法。",
+      "_t_MotionVectors": "フレーム間をブレンドするためのモーションベクトルマップ。既定値はエンジン付属のディストートテクスチャです。"
+    }
+  },
+  "stdlib/templates::SingleShot": {
+    "brief": "`RootLayerTemplate` が読む、項目が 1 つだけのイベントタイムラインです。t = 0 に 1 項目だけあるので、エフェクトは開始時に一度だけ放出します。多くのバンドルでは `sd0` にあたります。"
+  },
+  "stdlib/templates::SimpleCylinder": {
+    "brief": "円柱形のスポーンボリュームです。ワークスペース位置が先頭にあり、かつパラメータなのは、サンプラーのフィールド順が .pkb まで残り、子側のフィールドはテンプレートの後ろに追加されるからです。先頭になければならないものはテンプレートから出すしかありません。",
+    "param": {
+      "_t_Position": "エディタのワークスペースにおけるノードの座標。フィールド順が .pkb まで残るため先頭に置かれています。",
+      "_t_Radius": "円柱の外半径。"
+    }
+  },
+  "stdlib/vec::vec.UP": {
+    "brief": "ワールドの上方向の軸、+z です。WC3 は Z-up です。重力は `-UP` 方向に働きます。"
+  },
+  "stdlib/vec::vec.FORWARD": {
+    "brief": "前方向の軸、+y です。ベクトルが短すぎて正規化できないときのフォールバック方向として使われます。"
+  },
+  "stdlib/vec::vec.RIGHT": {
+    "brief": "右方向の軸、+x です。`FORWARD` と `UP` と合わせて右手系の基底を成します。"
+  },
+  "stdlib/vec::vec.length_sq": {
+    "brief": "長さの二乗です。距離を比較するだけなら平方根を省ける分 `length` より安価です。",
+    "param": {
+      "v": "測るベクトル。"
+    },
+    "result": "`v` 自身との内積。"
+  },
+  "stdlib/vec::vec.safe_normalize": {
+    "brief": "`normalize(v)` と同じですが、（ほぼ）ゼロのベクトルには NaN ではなく `fallback` を返します。PopcornFX の `safe_normalize` です。",
+    "param": {
+      "v": "正規化するベクトル。",
+      "fallback": "`v` が短すぎて方向を持てないときに使う方向。",
+      "epsilon": "この長さを下回ると `v` はゼロとみなされます。"
+    },
+    "result": "単位ベクトル、または `fallback`。"
+  },
+  "stdlib/vec::vec.safe_normalize_template": {
+    "brief": "`normalize(v)` ですが、長さが 2.5e-7 未満のベクトルには `fallback` を返します。PopcornFX Core の「safe normalize」テンプレートで、組み込みの `safe_normalize` が `<` で比べるところを `<=` で比べます。",
+    "param": {
+      "v": "正規化するベクトル。",
+      "fallback": "`v` が短すぎて向きを持たないときに使う方向。"
+    },
+    "result": "単位ベクトル、または `fallback`。"
+  },
+  "stdlib/vec::vec.normalize": {
+    "brief": "長さ 1 にスケールした `v` です。PopcornFX の `normalize`。ゼロベクトルでは NaN になります。`safe_normalize` を参照してください。",
+    "param": {
+      "v": "正規化するベクトル。"
+    },
+    "result": "`v` 方向の単位ベクトル。"
+  },
+  "stdlib/vec::vec.length": {
+    "brief": "`v` の長さです。PopcornFX の `length`。",
+    "param": {
+      "v": "長さを測るベクトル。"
+    },
+    "result": "ユークリッド長。"
+  },
+  "stdlib/vec::vec.dist": {
+    "brief": "2 点間の距離です。",
+    "param": {
+      "a": "1 つめの点。",
+      "b": "2 つめの点。"
+    },
+    "result": "2 点間の距離。"
+  },
+  "stdlib/vec::vec.dir_to": {
+    "brief": "`a` から `b` へ向かう単位ベクトル。両者が一致する場合は `fallback` を返します。",
+    "param": {
+      "a": "起点となる点。",
+      "b": "向かう先の点。",
+      "fallback": "`a` と `b` が同じ点のときに使う方向。"
+    },
+    "result": "`a` から `b` への単位方向。"
+  },
+  "stdlib/vec::vec.project": {
+    "brief": "`a` を `b` に射影したもの。`a` のうち `b` に沿った成分です。",
+    "param": {
+      "a": "射影されるベクトル。",
+      "b": "射影先のベクトル。単位長である必要はありません。"
+    },
+    "result": "`b` 方向における `a` の成分。"
+  },
+  "stdlib/vec::vec.reflect": {
+    "brief": "単位法線 `n` について `v` を反射します。正規化されていない法線は反射をスケールさせ、結果がずれていきます。",
+    "param": {
+      "v": "入射ベクトル。",
+      "n": "面の法線。単位長でなければなりません。"
+    },
+    "result": "反射後のベクトル。"
+  },
+  "stdlib/vec::vec.with_x": {
+    "brief": "x レーンだけを差し替えた f32x3 を作り直します。",
+    "param": {
+      "v": "作り直すベクトル。",
+      "x": "x レーンの新しい値。"
+    },
+    "result": "x レーンが差し替えられたベクトル。"
+  },
+  "stdlib/vec::vec.with_y": {
+    "brief": "y レーンだけを差し替えた f32x3 を作り直します。",
+    "param": {
+      "v": "作り直すベクトル。",
+      "y": "y レーンの新しい値。"
+    },
+    "result": "y レーンが差し替えられたベクトル。"
+  },
+  "stdlib/vec::vec.with_z": {
+    "brief": "z レーンだけを差し替えた f32x3 を作り直します。Z-up の WC3 ではこれが高さです。",
+    "param": {
+      "v": "作り直すベクトル。",
+      "z": "z レーンの新しい値。"
+    },
+    "result": "z レーンが差し替えられたベクトル。"
+  },
+  "stdlib/vec::vec.scale_xy": {
+    "brief": "高さはそのままに水平面（WC3 の Z-up な世界では x と y）だけをスケールします。バーストを持ち上げずに外へ広げられます。",
+    "param": {
+      "v": "スケールするベクトル。",
+      "s": "x と y に掛ける係数。"
+    },
+    "result": "x と y がスケールされ、高さである z はそのままのベクトル。"
+  },
+  "stdlib/xform::xform.Filter.None": {
+    "brief": "変換のどの部分も含みません。フィルタビットのないマスクは無操作ではなくプログラミングエラーであり、エンジンはアサートで引っかけます。"
+  },
+  "stdlib/xform::xform.Filter.Translate": {
+    "brief": "平行移動を適用します。同じエンジン関数の「点」版と「方向」版を分ける唯一のビットです。点は平行移動し、方向はしません。"
+  },
+  "stdlib/xform::xform.Filter.Rotate": {
+    "brief": "回転を適用します。クォータニオンは回転しかできず、向きのオーバーロードはこれがフィルタ全体であることをアサートします。"
+  },
+  "stdlib/xform::xform.Filter.Scale": {
+    "brief": "スケールを適用します。コーパスでこれを立てるマスクは `L2W_PointScaled` の 1 つで、エミッターと一緒にスケールするレイヤーの生成位置です。"
+  },
+  "stdlib/xform::xform.Filter.Full": {
+    "brief": "フィールドマスク（3 つの部分すべて）です。マスクからフィルターを読み取るのに使います。3 つ全部を一度に求めるコーパスのマスクは `L2W_PointScaled` だけです。"
+  },
+  "stdlib/xform::xform.Space.World": {
+    "brief": "ワールド空間です。すべてが共有する空間です。"
+  },
+  "stdlib/xform::xform.Space.WorldPrev": {
+    "brief": "このフレームの開始時点のワールド空間です。これを読むことでフレームごとの差分を作ります。"
+  },
+  "stdlib/xform::xform.Space.EmitterLocal": {
+    "brief": "エミッタ自身の空間です。エミッタローカル→ワールドの向きだけがパーティクルごとのスポーン変換を読み、他の向きはすべてのパーティクルにブロードキャストされたエミッタ変換を受け取ります。"
+  },
+  "stdlib/xform::xform.Space.EmitterLocalPrev": {
+    "brief": "このフレーム開始時のエミッタ空間です。`EmitterLocal` と組み合わせるのは実在の変換ですが、エンジンはそれを単に拒否します。両側ともローカルな組み合わせはすべてストリームのコピーに短絡されます。"
+  },
+  "stdlib/xform::xform.Space.MaskPrev": {
+    "brief": "空間フィールドのビット 0で、「前フレームの変換」を意味します。エンジンはこれをローカル性のビットとは別に読むため、両者は自由に組み合わせられます。"
+  },
+  "stdlib/xform::xform.Space.MaskSpace": {
+    "brief": "空間フィールドのビット 1 で、ワールドではなく「エミッタローカル」を意味します。"
+  },
+  "stdlib/xform::xform.Space.MaskFull": {
+    "brief": "空間フィールドの両ビットです。マスクを組み立てるのではなく、マスクから読み出すために使います。"
+  },
+  "stdlib/xform::xform.Mask": {
+    "brief": "マスク語を組み立てます。何を変換するか、どの空間を出るか、どの空間に入るかです。`enter`/`leave` はエンジン自身の命名に合わせてあるため、`xform_l2w` は `enter = EmitterLocal, leave = World` になります。",
+    "param": {
+      "filter": "変換のどの部分を適用するか。`Filter` から選びます。フィルタビットのないマスクはエラーです。",
+      "enter": "出ていく空間、つまりソースです（名前に反して）。既定値は `World` です。",
+      "leave": "入っていく空間、つまり行き先です。既定値は `World` で、`w2l` 呼び出しが触らない側にあたります。"
+    },
+    "result": "詰め込まれたマスク語。ビルド時に畳まれるため、各部分に名前を付けてもコストはかかりません。"
+  },
+  "stdlib/xform::xform.L2W_Point": {
+    "brief": "点をエミッタのローカル空間からワールド空間へ、平行移動だけで移します。入力が原点の場合、コーパスは回転付きの方ではなくこちらを書きます。ゼロを回転させても恒等変換だからです。"
+  },
+  "stdlib/xform::xform.L2W_PointRot": {
+    "brief": "点をエミッタのローカル空間から出し、同時に回転もさせます。出生位置の通常のマスクです。"
+  },
+  "stdlib/xform::xform.L2W_Dir": {
+    "brief": "方向をエミッタのローカル空間から出します。回転のみで、平行移動はしません。"
+  },
+  "stdlib/xform::xform.W2L_Dir": {
+    "brief": "方向をワールド空間からエミッタのローカル空間へ戻します。"
+  },
+  "stdlib/xform::xform.W2L_Point": {
+    "brief": "点をワールド空間からエミッタのローカル空間へ戻します。シェイプサンプラーが入力に求める向きです。"
+  },
+  "stdlib/xform::xform.W2L_PointPrev": {
+    "brief": "`W2L_Point` と同じですが、両側とも前フレームの変換を使います。フレームごとの差分が使う形で、コーパス中で Prev ビットを立てる唯一のマスクです。"
+  },
+  "stdlib/xform::xform.W2W_PointFromPrev": {
+    "brief": "点を前のフレームのワールド空間から今のフレームのワールド空間へ運びます。フレーム中のエミッターの動きをその点に適用するもので、動くエミッターにパーティクルが追従する仕組みです。"
+  },
+  "stdlib/xform::xform.L2W_PointScaled": {
+    "brief": "点をエミッターのローカル空間から出し、回転とスケールも適用します。エミッターと一緒にスケールするレイヤーの生成位置です。"
+  },
+  "stdlib/xform::xform.W2L_PointTranslate": {
+    "brief": "点をワールド空間からエミッターのローカル空間へ、平行移動だけで移します。`L2W_Point` の逆です。"
+  },
+  "stdlib/popcorn::popcorn.EventMultiplier": {
+    "brief": "PopcornFX の `EventMultiplier` です。フレーム中に `__e_Child` を `_t_Count` 回発火し（毎秒のレートなら `scene.dt * rate`）、エフェクトが止まると消えるルートレイヤーです。",
+    "param": {
+      "_t_Count": "このフレームで発火する数。毎秒のレートなら `scene.dt * rate`。",
+      "_t_Life": "レイヤーの寿命（秒）。`inf` ならエフェクトが止まるまで生きます。"
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEventMultiplier": {
+    "brief": "ユニットの放出レート倍率でレートが変わる `EventMultiplier` です。倍率 1 のとき毎秒 `__e_Child` を `_t_Rate` 回発火し、エフェクトが止まると消えるルートレイヤーです。",
+    "param": {
+      "_t_Rate": "放出レート倍率 1 のときに毎秒発火する数。",
+      "_t_Life": "レイヤーの寿命（秒）。`inf` ならエフェクトが止まるまで生きます。"
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_09e45c63": {
+    "brief": "フレーム中に `__e_Child` を `_t_Count` 回発火し、エフェクトが止まると消えるルートレイヤーです。ゲーム独自のライブラリのテンプレートによる `EventMultiplier` のプログラムです。",
+    "param": {
+      "_t_Count": "このフレームで発火する数。毎秒のレートなら `scene.dt * rate`。",
+      "_t_Life": "レイヤーの寿命（秒）。`inf` ならエフェクトが止まるまで生きます。"
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_09e45c63": {
+    "brief": "放出レート倍率 1 のとき毎秒 `__e_Child` を `_t_Rate` 回発火し、エフェクトが止まると消えるルートレイヤーです。ユニットの放出レート倍率でレートが変わる `Emitter_09e45c63` です。",
+    "param": {
+      "_t_Rate": "放出レート倍率 1 のときに毎秒発火する数。",
+      "_t_Life": "レイヤーの寿命（秒）。`inf` ならエフェクトが止まるまで生きます。"
+    }
+  },
+  "stdlib/popcorn::popcorn.Emitter_23a77ec7": {
+    "brief": "フレーム中に `__e_Child` を `_t_Count` 回発火し、エフェクトが止まると消えるルートレイヤーです。ゲーム独自のライブラリのテンプレートによる `EventMultiplier` のプログラムで、回数はたいていユニットの放出レート倍率に従います。",
+    "param": {
+      "_t_Count": "このフレームで発火する数。たいていは `scene.dt * (Wc3.Attributes.EmissionRateMultiplier * rate)`。",
+      "_t_Life": "レイヤーの寿命（秒）。`inf` ならエフェクトが止まるまで生きます。"
+    }
+  },
+  "stdlib/popcorn::popcorn.ScaledEmitter_23a77ec7": {
+    "brief": "放出レート倍率 1 のとき毎秒 `__e_Child` を `_t_Rate` 回発火し、エフェクトが止まると消えるルートレイヤーです。たいていの回数どおり、ユニットの放出レート倍率に従う `Emitter_23a77ec7` です。",
+    "param": {
+      "_t_Rate": "放出レート倍率 1 のときに毎秒発火する数。",
+      "_t_Life": "レイヤーの寿命（秒）。`inf` ならエフェクトが止まるまで生きます。"
+    }
+  },
+  "stdlib/popcorn::popcorn.InfiniteLife": {
+    "brief": "既定の 1 秒の `DeathDelay` を持つ PopcornFX の `InfiniteLife` を、専用のルートレイヤーに置いたものです。エフェクトが止まるまで生き、その 1 秒後に消えます。"
+  },
+  "stdlib/popcorn::popcorn.StopTimer_4f9baf59": {
+    "brief": "エフェクトが止まるまで生き、止まった直後のフレームで消えるルートレイヤーです。ゲーム独自のライブラリの停止タイマーのテンプレート（遅延なしの `InfiniteLife`）によるものです。"
+  },
+  "stdlib/physics::physics.velocity_between": {
+    "brief": "このフレームで粒子を `previous` から `current` へ運んだ速度。両者の差をフレームの長さで割ったもので、長さのないフレームでは割る動きがないので 0。",
+    "param": {
+      "previous": "フレーム開始時の粒子の位置。",
+      "current": "現在の位置。"
+    },
+    "result": "速度（毎秒）。"
+  },
+  "stdlib/life::life.intro_loop_time": {
+    "brief": "`birth` に生まれた粒子について、`scene.time` 秒の時点でサンプルするカーブ上の位置。最初の `intro` 秒でカーブの先頭 `intro_share` を通り、その後は残りを `loop_seconds` ごとにループする。",
+    "param": {
+      "birth": "粒子が生まれた時刻（`init` で保存した `scene.time`）。",
+      "intro": "カーブの最初の部分を一度だけ再生する秒数。",
+      "intro_share": "その最初の部分がカーブの何割か（0 から 1）。",
+      "loop_seconds": "カーブの残りを一周する時間。"
+    },
+    "result": "カーブのパラメーター（0 から 1）。"
+  }
+}
